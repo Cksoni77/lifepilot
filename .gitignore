@@ -1,0 +1,72 @@
+# -----------------------------
+# Miscellaneous
+# -----------------------------
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+Thumbs.db
+
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# -----------------------------
+# IntelliJ / Android Studio
+# -----------------------------
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# -----------------------------
+# VS Code
+# -----------------------------
+# Uncomment if you don't want to share VS Code settings
+#.vscode/
+
+# -----------------------------
+# Flutter / Dart
+# -----------------------------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+.pub-cache/
+build/
+coverage/
+
+**/doc/api/
+**/ios/Flutter/.last_build_id
+
+# -----------------------------
+# Android
+# -----------------------------
+android/.gradle/
+android/local.properties
+
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# -----------------------------
+# iOS
+# -----------------------------
+ios/Pods/
+ios/.symlinks/
+
+# -----------------------------
+# Symbolication
+# -----------------------------
+app.*.symbols
+
+# -----------------------------
+# Obfuscation
+# -----------------------------
+app.*.map.json
