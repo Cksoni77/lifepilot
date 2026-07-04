@@ -1,17 +1,32 @@
-# lifepilot
+# LifePilot
 
-A new Flutter project.
+AI-powered Personal Life Management Mobile Application.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- Add Tasks
+- Complete Tasks
+- Delete Tasks
+- Local Storage
+- Task Statistics
 
-A few resources to get you started if this is your first Flutter project:
+## Technology Stack
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- Flutter
+- Dart
+- SharedPreferences
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Future Roadmap
+
+- Notifications
+- Categories
+- Priority
+- Calendar
+- Spring Boot Backend
+- PostgreSQL
+- AI Task Extraction
+- Google Authentication
+
+## Project Status
+
+🚀 MVP Development in Progress
