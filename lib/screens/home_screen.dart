@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../models/task.dart';
+import '../services/notification_service.dart';
 import '../services/task_service.dart';
 import '../widgets/task_card.dart';
 
@@ -17,6 +18,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final TaskService _taskService = TaskService();
   String _selectedCategory = Task.defaultCategory;
   TaskPriority _selectedPriority = TaskPriority.medium;
+  DateTime? _selectedDueDate;
+  DateTime? _selectedReminderDate;
   bool _sortByPriority = false;
 
   @override
@@ -49,18 +52,25 @@ class _HomeScreenState extends State<HomeScreen> {
     if (newTaskTitle.isEmpty) return;
 
     final task = Task(
-      title: newTaskTitle,
-      category: _selectedCategory,
-      priority: _selectedPriority,
-    );
+  id: DateTime.now().microsecondsSinceEpoch.toString(),
+  title: newTaskTitle,
+  category: _selectedCategory,
+  priority: _selectedPriority,
+  dueDate: _selectedDueDate,
+  reminderDate: _selectedReminderDate,
+  reminderEnabled: _selectedReminderDate != null,
+);
 
     final updatedTasks = [..._tasks, task];
     await _taskService.saveTasks(updatedTasks);
+    await NotificationService.instance.scheduleReminder(task);
 
     if (!mounted) return;
     setState(() {
       _tasks = updatedTasks;
       _taskController.clear();
+      _selectedDueDate = null;
+      _selectedReminderDate = null;
     });
   }
 
@@ -68,6 +78,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _tasks[index].completed = value ?? false;
     final updatedTasks = [..._tasks];
     await _taskService.saveTasks(updatedTasks);
+    if (value == true) {
+      await NotificationService.instance.cancelReminder(updatedTasks[index]);
+    } else if (updatedTasks[index].reminderDate != null) {
+      await NotificationService.instance.scheduleReminder(updatedTasks[index]);
+    }
 
     if (!mounted) return;
     setState(() {
@@ -82,6 +97,57 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() {
       _tasks = updatedTasks;
+    });
+  }
+
+  Future<void> _pickDueDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDueDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (pickedDate != null) {
+      setState(() {
+        _selectedDueDate = pickedDate;
+      });
+    }
+  }
+
+  Future<void> _pickReminderDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedReminderDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+    );
+
+    if (!mounted || pickedDate == null) {
+      return;
+    }
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedReminderDate ?? DateTime.now()),
+    );
+
+    if (!mounted || pickedTime == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedReminderDate = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
     });
   }
 
@@ -195,6 +261,34 @@ class _HomeScreenState extends State<HomeScreen> {
                           });
                         }
                       },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _pickDueDate,
+                            icon: const Icon(Icons.calendar_today_outlined),
+                            label: Text(
+                              _selectedDueDate == null
+                                  ? 'Pick Due Date'
+                                  : 'Due: ${_selectedDueDate!.day}/${_selectedDueDate!.month}/${_selectedDueDate!.year}',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _pickReminderDate,
+                            icon: const Icon(Icons.notifications_none),
+                            label: Text(
+                              _selectedReminderDate == null
+                                  ? 'Reminder'
+                                  : 'Remind: ${_selectedReminderDate!.day}/${_selectedReminderDate!.month}/${_selectedReminderDate!.year}',
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(

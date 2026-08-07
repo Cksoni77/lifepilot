@@ -19,6 +19,13 @@ class TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final status = task.status();
+    final statusText = status == TaskStatus.overdue
+        ? '🔴 Overdue'
+        : status == TaskStatus.dueToday
+            ? '🟡 Due Today'
+            : null;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -51,6 +58,33 @@ class TaskCard extends StatelessWidget {
                       PriorityChip(priority: task.priority),
                     ],
                   ),
+                  if (task.dueDate != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Due: ${task.displayDueLabel.isNotEmpty ? task.displayDueLabel : task.formattedDueDate}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                  if (task.reminderDate != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Reminder: ${task.formattedReminderDate}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                  if (statusText != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        color: status == TaskStatus.overdue ? Colors.red : Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
