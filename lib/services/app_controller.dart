@@ -26,7 +26,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> load() async {
     user = await _authService.currentUser();
-    preferences = await _userService.loadPreferences();
+    preferences = await _userService.loadPreferences(userId: user?.id);
     isLoading = false;
     notifyListeners();
   }
@@ -35,7 +35,7 @@ class AppController extends ChangeNotifier {
     user = updatedUser;
     preferences = updatedPreferences;
     await _userService.saveUser(updatedUser);
-    await _userService.savePreferences(updatedPreferences);
+    await _userService.savePreferences(updatedPreferences, userId: updatedUser.id);
     notifyListeners();
   }
 

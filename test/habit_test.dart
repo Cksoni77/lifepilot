@@ -1,9 +1,35 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifepilot/models/habit.dart';
 import 'package:lifepilot/models/task.dart';
+import 'package:lifepilot/screens/habit_screen.dart';
 import 'package:lifepilot/utils/date_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('habit creation validates and displays the new habit', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: HabitScreen(userId: 'test-user')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add habit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create habit'));
+    await tester.pump();
+    expect(find.text('Give your habit a name'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField).first, 'Read daily');
+    await tester.tap(find.text('Create habit'));
+    await tester.pumpAndSettle();
+    expect(find.text('Read daily'), findsOneWidget);
+    expect(find.text('Read daily added to your habits.'), findsOneWidget);
+  });
+
   group('Habit streaks', () {
     final referenceDate = DateTime(2026, 8, 8);
 

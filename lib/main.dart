@@ -63,7 +63,7 @@ class _LifePilotAppState extends State<LifePilotApp> {
               ? const _LoadingScreen()
               : _controller.user == null
                   ? const LoginScreen()
-                  : const HomeScreen(),
+                  : HomeScreen(userId: _controller.user!.id),
         ),
       ),
     );

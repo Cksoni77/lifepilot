@@ -23,12 +23,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late bool _reminderEnabled;
   late TaskPriority _defaultPriority;
   bool _isSaving = false;
+  bool _hasInitializedFields = false;
 
   static const _avatars = <String>['person', 'face', 'self_improvement', 'rocket_launch'];
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_hasInitializedFields) return;
     final controller = AppController.of(context);
     final user = controller.user!;
     _nameController = TextEditingController(text: user.name);
@@ -38,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _notificationsEnabled = controller.preferences.notificationsEnabled;
     _reminderEnabled = controller.preferences.reminderEnabled;
     _defaultPriority = controller.preferences.defaultTaskPriority;
+    _hasInitializedFields = true;
   }
 
   @override

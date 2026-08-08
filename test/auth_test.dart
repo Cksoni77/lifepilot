@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifepilot/models/user_preferences.dart';
+import 'package:lifepilot/models/habit.dart';
+import 'package:lifepilot/models/task.dart';
 import 'package:lifepilot/services/auth_service.dart';
+import 'package:lifepilot/services/habit_service.dart';
+import 'package:lifepilot/services/task_service.dart';
 import 'package:lifepilot/services/user_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -40,5 +44,20 @@ void main() {
     expect(restored.theme, 'dark');
     expect(restored.notificationsEnabled, isFalse);
     expect(restored.reminderEnabled, isTrue);
+  });
+
+  test('tasks and habits are isolated by user ID', () async {
+    final firstTask = TaskService(userId: 'user-a');
+    final secondTask = TaskService(userId: 'user-b');
+    final firstHabit = HabitService(userId: 'user-a');
+    final secondHabit = HabitService(userId: 'user-b');
+
+    await firstTask.saveTasks([Task(id: 'task-a', title: 'Private task')]);
+    await firstHabit.saveHabits([Habit(id: 'habit-a', name: 'Private habit')]);
+
+    expect((await secondTask.loadTasks()), isEmpty);
+    expect((await secondHabit.loadHabits()), isEmpty);
+    expect((await firstTask.loadTasks()).single.title, 'Private task');
+    expect((await firstHabit.loadHabits()).single.name, 'Private habit');
   });
 }

@@ -7,14 +7,16 @@ import '../widgets/calendar_task_list.dart';
 import '../widgets/calendar_view.dart';
 
 class CalendarScreen extends StatefulWidget {
-  const CalendarScreen({super.key});
+  const CalendarScreen({required this.userId, super.key});
+
+  final String userId;
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  final TaskService _taskService = TaskService();
+  late final TaskService _taskService = TaskService(userId: widget.userId);
   List<Task> _tasks = <Task>[];
   DateTime _selectedDate = startOfDay(DateTime.now());
   late DateTime _displayedMonth = DateTime(_selectedDate.year, _selectedDate.month);
