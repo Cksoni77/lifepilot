@@ -135,6 +135,7 @@ class Task {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'title': title,
       'completed': completed,
       'category': category,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/task.dart';
+import 'calendar_screen.dart';
+import 'habit_screen.dart';
 import '../services/notification_service.dart';
 import '../services/task_service.dart';
 import '../widgets/task_card.dart';
@@ -416,7 +418,27 @@ class _HomeScreenState extends State<HomeScreen> {
     final displayedTasks = _sortedTasks;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('LifePilot')),
+      appBar: AppBar(
+        title: const Text('LifePilot'),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const CalendarScreen()),
+            ),
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Calendar',
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const HabitScreen()),
+            ),
+            icon: const Icon(Icons.track_changes_outlined),
+            tooltip: 'Habit tracker',
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // Form section - scrollable
