@@ -11,7 +11,9 @@ import '../widgets/task_card.dart';
 enum _TaskFilter { all, completed, pending, overdue, dueToday, highPriority }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({required this.userId, super.key});
+
+  final String userId;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -20,7 +22,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late List<Task> _tasks = [];
   final TextEditingController _taskController = TextEditingController();
-  final TaskService _taskService = TaskService();
+  late final TaskService _taskService = TaskService(userId: widget.userId);
   String _selectedCategory = Task.defaultCategory;
   TaskPriority _selectedPriority = TaskPriority.medium;
   DateTime? _selectedDueDate;
@@ -425,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const CalendarScreen()),
+              MaterialPageRoute<void>(builder: (_) => CalendarScreen(userId: widget.userId)),
             ),
             icon: const Icon(Icons.calendar_month_outlined),
             tooltip: 'Calendar',
@@ -433,7 +435,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const HabitScreen()),
+              MaterialPageRoute<void>(builder: (_) => HabitScreen(userId: widget.userId)),
             ),
             icon: const Icon(Icons.track_changes_outlined),
             tooltip: 'Habit tracker',

@@ -5,7 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/task.dart';
 
 class TaskService {
-  static const String _tasksKey = 'tasks';
+  TaskService({required this.userId});
+
+  final String userId;
+
+  String get _tasksKey => 'tasks_$userId';
 
   Future<List<Task>> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();

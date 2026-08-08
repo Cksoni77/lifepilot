@@ -5,7 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/habit.dart';
 
 class HabitService {
-  static const String _habitsKey = 'habits';
+  HabitService({required this.userId});
+
+  final String userId;
+
+  String get _habitsKey => 'habits_$userId';
 
   Future<List<Habit>> loadHabits() async {
     final prefs = await SharedPreferences.getInstance();

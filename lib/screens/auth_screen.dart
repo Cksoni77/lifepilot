@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
     AppController.of(context).refreshUser(user);
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+      MaterialPageRoute<void>(builder: (_) => HomeScreen(userId: user.id)),
     );
   }
 
@@ -144,7 +144,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     AppController.of(context).refreshUser(user);
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+                MaterialPageRoute<void>(builder: (_) => HomeScreen(userId: user.id)),
       (_) => false,
     );
   }
