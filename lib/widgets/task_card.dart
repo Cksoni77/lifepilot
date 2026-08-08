@@ -8,6 +8,7 @@ class TaskCard extends StatelessWidget {
     required this.task,
     required this.onToggle,
     required this.onDelete,
+    required this.onEdit,
     required this.index,
     super.key,
   });
@@ -15,6 +16,7 @@ class TaskCard extends StatelessWidget {
   final Task task;
   final ValueChanged<bool?> onToggle;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
   final int index;
 
   @override
@@ -23,8 +25,8 @@ class TaskCard extends StatelessWidget {
     final statusText = status == TaskStatus.overdue
         ? '🔴 Overdue'
         : status == TaskStatus.dueToday
-            ? '🟡 Due Today'
-            : null;
+        ? '🟡 Due Today'
+        : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -32,10 +34,7 @@ class TaskCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Checkbox(
-              value: task.completed,
-              onChanged: onToggle,
-            ),
+            Checkbox(value: task.completed, onChanged: onToggle),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +79,9 @@ class TaskCard extends StatelessWidget {
                     Text(
                       statusText,
                       style: TextStyle(
-                        color: status == TaskStatus.overdue ? Colors.red : Colors.orange,
+                        color: status == TaskStatus.overdue
+                            ? Colors.red
+                            : Colors.orange,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -89,7 +90,13 @@ class TaskCard extends StatelessWidget {
               ),
             ),
             IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit task',
+              onPressed: onEdit,
+            ),
+            IconButton(
               icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete task',
               onPressed: onDelete,
             ),
           ],
