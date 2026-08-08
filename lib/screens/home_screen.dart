@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import 'calendar_screen.dart';
 import 'habit_screen.dart';
+import 'profile_screen.dart';
 import '../services/notification_service.dart';
 import '../services/task_service.dart';
 import '../widgets/task_card.dart';
@@ -436,6 +437,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             icon: const Icon(Icons.track_changes_outlined),
             tooltip: 'Habit tracker',
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+            ),
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
           ),
         ],
       ),
