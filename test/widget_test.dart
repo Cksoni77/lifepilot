@@ -14,12 +14,11 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const LifePilotApp());
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
-    // Verify app title is visible
     expect(find.text('LifePilot'), findsOneWidget);
-    
-    // Verify greeting is visible
-    expect(find.text('Good Morning 👋'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Log in'), findsOneWidget);
   });
 }
