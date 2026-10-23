@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
@@ -17,6 +19,7 @@ class LifePilotApp extends StatefulWidget {
 class _LifePilotAppState extends State<LifePilotApp> {
   late final AppController _controller;
   bool _showSplash = true;
+  Timer? _splashTimer;
 
   @override
   void initState() {
@@ -26,18 +29,20 @@ class _LifePilotAppState extends State<LifePilotApp> {
   }
 
   Future<void> _initialize() async {
-  await Future.wait([
-    _controller.load(),
-    Future.delayed(const Duration(milliseconds: 3000)),
-  ]);
+    await _controller.load();
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  setState(() => _showSplash = false);
-}
+    _splashTimer?.cancel();
+    _splashTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() => _showSplash = false);
+    });
+  }
 
   @override
   void dispose() {
+    _splashTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

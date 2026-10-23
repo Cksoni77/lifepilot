@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../models/chat_message.dart';
+import '../widgets/chat_bubble.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
+
   @override
   State<AiChatScreen> createState() => _AiChatScreenState();
 }
 
 class _AiChatScreenState extends State<AiChatScreen> {
-  final _controller = TextEditingController();
-  final _messages = <ChatMessage>[
+  final TextEditingController _controller =
+      TextEditingController();
+
+  final List<ChatMessage> _messages = [
     ChatMessage(
       id: 'welcome',
       content:
@@ -29,8 +33,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
   void _send() {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+
+    if (text.isEmpty) {
+      return;
+    }
+
     setState(() {
+      // User message
       _messages.add(
         ChatMessage(
           id: DateTime.now().toIso8601String(),
@@ -39,122 +48,115 @@ class _AiChatScreenState extends State<AiChatScreen> {
           timestamp: DateTime.now(),
         ),
       );
+
+      // Temporary AI response
       _messages.add(
         ChatMessage(
           id: '${DateTime.now().microsecondsSinceEpoch}-reply',
-          content: 'Done - I can help turn that into a clear next step.',
+          content:
+              'Done - I can help turn that into a clear next step.',
           fromUser: false,
           timestamp: DateTime.now(),
         ),
       );
+
       _controller.clear();
     });
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Row(
-        children: [
-          const CircleAvatar(
-            radius: 17,
-            backgroundColor: AppColors.accentPurpleTint,
-            child: Icon(
-              Icons.auto_awesome,
-              color: AppColors.accentPurple,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('AI Co-pilot'),
-              Text(
-                '● Online',
-                style: TextStyle(color: AppColors.primary, fontSize: 11),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Row(
+          children: [
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: AppColors.accentPurpleTint,
+              child: Icon(
+                Icons.auto_awesome,
+                color: AppColors.accentPurple,
+                size: 18,
               ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.more_horiz),
-          tooltip: 'More options',
-        ),
-      ],
-    ),
-    body: Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
-            itemCount: _messages.length,
-            itemBuilder: (context, index) {
-              final message = _messages[index];
-              return _Bubble(message: message);
-            },
-          ),
-        ),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Row(
+            ),
+            SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    onSubmitted: (_) => _send(),
-                    decoration: const InputDecoration(
-                      hintText: 'Ask LifePilot anything...',
-                      prefixIcon: Icon(Icons.add),
-                    ),
+                Text('AI Co-pilot'),
+                Text(
+                  '● Online',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: _send,
-                  icon: const Icon(Icons.mic_none),
-                  tooltip: 'Send message',
                 ),
               ],
             ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.more_horiz),
+            tooltip: 'More options',
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message});
-  final ChatMessage message;
-
-  @override
-  Widget build(BuildContext context) => Align(
-    alignment: message.fromUser ? Alignment.centerRight : Alignment.centerLeft,
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      constraints: const BoxConstraints(maxWidth: 310),
-      decoration: BoxDecoration(
-        color: message.fromUser ? AppColors.primary : AppColors.surface,
-        borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(16),
-          topRight: const Radius.circular(16),
-          bottomLeft: Radius.circular(message.fromUser ? 16 : 4),
-          bottomRight: Radius.circular(message.fromUser ? 4 : 16),
-        ),
-        border: message.fromUser ? null : Border.all(color: AppColors.border),
+        ],
       ),
-      child: Text(
-        message.content,
-        style: TextStyle(
-          color: message.fromUser ? Colors.white : AppColors.textPrimary,
-        ),
+
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                18,
+                16,
+                12,
+              ),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final message = _messages[index];
+
+                return ChatBubble(
+                  message: message,
+                );
+              },
+            ),
+          ),
+
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                12,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      onSubmitted: (_) => _send(),
+                      decoration: const InputDecoration(
+                        hintText: 'Ask LifePilot anything...',
+                        prefixIcon: Icon(Icons.add),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: _send,
+                    icon: const Icon(Icons.arrow_upward),
+                    tooltip: 'Send message',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 }

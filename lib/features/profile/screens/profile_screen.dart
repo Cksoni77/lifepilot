@@ -193,40 +193,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
 
-              RadioListTile<ThemeMode>(
-                title: const Text('System Default'),
-                value: ThemeMode.system,
+              RadioGroup<ThemeMode>(
                 groupValue: controller.themeMode,
-                onChanged: (value) {
+                onChanged: (ThemeMode? value) {
                   if (value == null) return;
 
                   controller.setThemeMode(value);
                   Navigator.pop(context);
                 },
-              ),
-
-              RadioListTile<ThemeMode>(
-                title: const Text('Light'),
-                value: ThemeMode.light,
-                groupValue: controller.themeMode,
-                onChanged: (value) {
-                  if (value == null) return;
-
-                  controller.setThemeMode(value);
-                  Navigator.pop(context);
-                },
-              ),
-
-              RadioListTile<ThemeMode>(
-                title: const Text('Dark'),
-                value: ThemeMode.dark,
-                groupValue: controller.themeMode,
-                onChanged: (value) {
-                  if (value == null) return;
-
-                  controller.setThemeMode(value);
-                  Navigator.pop(context);
-                },
+                child: const Column(
+                  children: [
+                    RadioListTile<ThemeMode>(
+                      title: Text('System Default'),
+                      value: ThemeMode.system,
+                    ),
+                    RadioListTile<ThemeMode>(
+                      title: Text('Light'),
+                      value: ThemeMode.light,
+                    ),
+                    RadioListTile<ThemeMode>(
+                      title: Text('Dark'),
+                      value: ThemeMode.dark,
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 8),
