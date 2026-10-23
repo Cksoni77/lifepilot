@@ -8,6 +8,14 @@
 .DS_Store
 Thumbs.db
 
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+
 .atom/
 .build/
 .buildlog/
@@ -27,8 +35,9 @@ migrate_working_dir/
 # -----------------------------
 # VS Code
 # -----------------------------
-# Uncomment if you don't want to share VS Code settings
-#.vscode/
+# Keep shareable project settings, but ignore local machine state.
+.vscode/*.local.json
+.vscode/settings.json
 
 # -----------------------------
 # Flutter / Dart

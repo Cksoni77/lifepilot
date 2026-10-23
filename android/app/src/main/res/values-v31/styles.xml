@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <!-- Use the gradient launch drawable for the window background so the
+             native Android 12+ splash matches the Flutter gradient. Use a
+             transparent/empty animated icon to avoid the large system launcher
+             icon overlay. -->
+        <item name="android:windowSplashScreenBackground">@color/lifepilot_primary</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_icon_empty</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+</resources>
