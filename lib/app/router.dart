@@ -24,7 +24,7 @@ abstract final class AppRoutes {
   static const insights = '/insights';
   static const notifications = '/notifications';
 
-  static final onboardingRoute = MaterialPageRoute<void>(
+  static Route<void> onboardingRoute() => MaterialPageRoute<void>(
     settings: const RouteSettings(name: onboarding),
     builder: (_) => const OnboardingScreen(),
   );
@@ -44,43 +44,44 @@ abstract final class AppRoutes {
     builder: (_) => HabitScreen(userId: userId),
   );
 
-  static final profileRoute = MaterialPageRoute<void>(
+  static Route<void> profileRoute() => MaterialPageRoute<void>(
     settings: RouteSettings(name: profile),
     builder: _profileBuilder,
   );
 
-  static final goalsRoute = MaterialPageRoute<void>(
+  static Route<void> goalsRoute(String userId) => MaterialPageRoute<void>(
     settings: const RouteSettings(name: goals),
-    builder: (_) => const GoalsScreen(),
+    builder: (_) => GoalsScreen(userId: userId),
   );
 
-  static final insightsRoute = MaterialPageRoute<void>(
+  static Route<void> insightsRoute(String userId) => MaterialPageRoute<void>(
     settings: const RouteSettings(name: insights),
-    builder: (_) => const InsightsScreen(),
+    builder: (_) => InsightsScreen(userId: userId),
   );
 
-  static final notificationsRoute = MaterialPageRoute<void>(
-    settings: const RouteSettings(name: notifications),
-    builder: (_) => const NotificationsScreen(),
-  );
+  static Route<void> notificationsRoute(String userId) =>
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: notifications),
+        builder: (_) => NotificationsScreen(userId: userId),
+      );
 
   static Widget _profileBuilder(BuildContext context) => const ProfileScreen();
 
-  static final signInRoute = MaterialPageRoute<void>(
+  static Route<void> signInRoute() => MaterialPageRoute<void>(
     settings: RouteSettings(name: signIn),
     builder: _signInBuilder,
   );
 
   static Widget _signInBuilder(BuildContext context) => const LoginScreen();
 
-  static final signUpRoute = MaterialPageRoute<void>(
+  static Route<void> signUpRoute() => MaterialPageRoute<void>(
     settings: RouteSettings(name: signUp),
     builder: _signUpBuilder,
   );
 
   static Widget _signUpBuilder(BuildContext context) => const RegisterScreen();
 
-  static final forgotPasswordRoute = MaterialPageRoute<void>(
+  static Route<void> forgotPasswordRoute() => MaterialPageRoute<void>(
     settings: RouteSettings(name: forgotPassword),
     builder: _forgotPasswordBuilder,
   );

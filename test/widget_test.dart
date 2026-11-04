@@ -13,9 +13,7 @@ void main() {
   testWidgets('app shows splash screen and then login screen', (
     WidgetTester tester,
   ) async {
-    SharedPreferences.setMockInitialValues({
-      'onboardingCompleted': true,
-    });
+    SharedPreferences.setMockInitialValues({'onboardingCompleted': true});
 
     await tester.pumpWidget(const LifePilotApp());
     await tester.pump();
@@ -33,9 +31,7 @@ void main() {
   testWidgets('app shows onboarding when onboarding is not completed', (
     WidgetTester tester,
   ) async {
-    SharedPreferences.setMockInitialValues({
-      'onboardingCompleted': false,
-    });
+    SharedPreferences.setMockInitialValues({'onboardingCompleted': false});
 
     await tester.pumpWidget(const LifePilotApp());
     await tester.pump();

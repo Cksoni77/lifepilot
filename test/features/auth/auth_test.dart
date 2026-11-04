@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifepilot/features/auth/services/auth_service.dart';
 import 'package:lifepilot/features/habits/models/habit.dart';
@@ -50,6 +52,29 @@ void main() {
     expect(restored.theme, 'dark');
     expect(restored.notificationsEnabled, isFalse);
     expect(restored.reminderEnabled, isTrue);
+  });
+
+  test('stored password is hashed and not kept in plain text', () async {
+    final auth = AuthService();
+    await auth.register(
+      name: 'Hash User',
+      email: 'hash@example.com',
+      password: 'secret-pass',
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    final data =
+        jsonDecode(prefs.getString('local_users') ?? '{}')
+            as Map<String, dynamic>;
+    final account = data.values.first as Map<String, dynamic>;
+
+    expect(account.containsKey('passwordHash'), isTrue);
+    expect(account.containsKey('passwordSalt'), isTrue);
+    expect(account.containsKey('password'), isFalse);
+    expect(
+      (await auth.login(email: 'hash@example.com', password: 'secret-pass')),
+      isNotNull,
+    );
   });
 
   test('tasks and habits are isolated by user ID', () async {

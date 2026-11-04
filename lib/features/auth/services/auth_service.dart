@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user.dart';
@@ -44,12 +46,22 @@ class AuthService {
     )) {
       throw StateError('An account with this email already exists.');
     }
+
     final user = User(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       name: name.trim(),
       email: normalizedEmail,
     );
-    accounts[user.id] = {'user': user.toJson(), 'password': password};
+
+    final salt = _generateSalt();
+    final passwordHash = _hashPassword(password, salt);
+
+    accounts[user.id] = {
+      'user': user.toJson(),
+      'passwordHash': passwordHash,
+      'passwordSalt': salt,
+    };
+
     await _saveAccounts(prefs, accounts);
     await prefs.setString(_tokenKey, user.id);
     return user;
@@ -66,11 +78,38 @@ class AuthService {
               email.trim().toLowerCase(),
           orElse: () => null,
         );
-    if (accountEntry == null || accountEntry['password'] != password) {
+
+    if (accountEntry == null) {
       return null;
     }
+
+    final storedHash = accountEntry['passwordHash'] as String?;
+    final storedSalt = accountEntry['passwordSalt'] as String?;
+    final legacyPassword = accountEntry['password'] as String?;
+
+    final matchesHash =
+        storedHash != null &&
+        storedSalt != null &&
+        _hashPassword(password, storedSalt) == storedHash;
+
+    final matchesLegacy = legacyPassword != null && legacyPassword == password;
+
+    if (!matchesHash && !matchesLegacy) {
+      return null;
+    }
+
     final user = User.fromJson(accountEntry['user'] as Map<String, dynamic>);
     await prefs.setString(_tokenKey, user.id);
+
+    if (storedHash == null || storedSalt == null) {
+      final migratedSalt = _generateSalt();
+      final migratedHash = _hashPassword(password, migratedSalt);
+      accountEntry['passwordHash'] = migratedHash;
+      accountEntry['passwordSalt'] = migratedSalt;
+      accountEntry.remove('password');
+      await _saveAccounts(prefs, accounts);
+    }
+
     return user;
   }
 
@@ -98,12 +137,16 @@ class AuthService {
         (id, value) => MapEntry(id, Map<String, dynamic>.from(value as Map)),
       );
     }
+
     final legacyUser = prefs.getString(_legacyUserKey);
     if (legacyUser == null) return <String, Map<String, dynamic>>{};
+
     final user = jsonDecode(legacyUser) as Map<String, dynamic>;
     final id = user['id'] as String;
+    final legacyPassword = prefs.getString(_legacyPasswordKey) ?? '';
+
     return {
-      id: {'user': user, 'password': prefs.getString(_legacyPasswordKey) ?? ''},
+      id: {'user': user, 'password': legacyPassword},
     };
   }
 
@@ -112,5 +155,16 @@ class AuthService {
     Map<String, Map<String, dynamic>> accounts,
   ) async {
     await prefs.setString(_usersKey, jsonEncode(accounts));
+  }
+
+  String _generateSalt() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    return base64Url.encode(bytes);
+  }
+
+  String _hashPassword(String password, String salt) {
+    final digest = sha256.convert(utf8.encode('$salt:$password'));
+    return digest.toString();
   }
 }

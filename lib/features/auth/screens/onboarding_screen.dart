@@ -89,8 +89,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Text(
                   'LifePilot  /  ${_currentPage + 1} of ${_pages.length}',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
 
@@ -104,9 +104,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     });
                   },
                   itemBuilder: (context, index) {
-                    return _OnboardingContent(
-                      page: _pages[index],
-                    );
+                    return _OnboardingContent(page: _pages[index]);
                   },
                 ),
               ),
@@ -140,10 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
 
               if (_currentPage < _pages.length - 1)
-                TextButton(
-                  onPressed: _complete,
-                  child: const Text('Skip'),
-                )
+                TextButton(onPressed: _complete, child: const Text('Skip'))
               else
                 const SizedBox(height: 48),
             ],
@@ -169,9 +164,7 @@ class _OnboardingPage {
 }
 
 class _OnboardingContent extends StatelessWidget {
-  const _OnboardingContent({
-    required this.page,
-  });
+  const _OnboardingContent({required this.page});
 
   final _OnboardingPage page;
 
@@ -188,11 +181,7 @@ class _OnboardingContent extends StatelessWidget {
           child: SizedBox(
             width: 150,
             height: 150,
-            child: Icon(
-              page.icon,
-              size: 64,
-              color: AppColors.primaryDark,
-            ),
+            child: Icon(page.icon, size: 64, color: AppColors.primaryDark),
           ),
         ),
 
@@ -210,9 +199,9 @@ class _OnboardingContent extends StatelessWidget {
           page.description,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-                height: 1.55,
-              ),
+            color: AppColors.textSecondary,
+            height: 1.55,
+          ),
         ),
       ],
     );

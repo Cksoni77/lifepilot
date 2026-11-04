@@ -34,23 +34,29 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
       _error = null;
     });
-    final user = await _authService.login(
-      email: _emailController.text,
-      password: _passwordController.text,
-    );
-    if (!mounted) return;
-    if (user == null) {
+    try {
+      final user = await _authService.login(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      if (user == null) {
+        setState(() => _error = 'Email or password is incorrect.');
+        return;
+      }
+      AppController.of(context).refreshUser(user);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(builder: (_) => HomeScreen(userId: user.id)),
+      );
+    } catch (_) {
+      if (!mounted) return;
       setState(() {
-        _isLoading = false;
-        _error = 'Email or password is incorrect.';
+        _error = 'Unable to sign in right now. Please try again.';
       });
-      return;
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-    AppController.of(context).refreshUser(user);
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute<void>(builder: (_) => HomeScreen(userId: user.id)),
-    );
   }
 
   @override
@@ -147,6 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _auth = AuthService();
   bool _loading = false;
   bool _showPassword = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -159,19 +166,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    final user = await _auth.register(
-      name: _name.text,
-      email: _email.text,
-      password: _password.text,
-    );
-    if (!mounted) return;
-    AppController.of(context).refreshUser(user);
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute<void>(builder: (_) => HomeScreen(userId: user.id)),
-      (_) => false,
-    );
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final user = await _auth.register(
+        name: _name.text,
+        email: _email.text,
+        password: _password.text,
+      );
+      if (!mounted) return;
+      AppController.of(context).refreshUser(user);
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute<void>(builder: (_) => HomeScreen(userId: user.id)),
+        (_) => false,
+      );
+    } on StateError catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.message.toString());
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Unable to create your account right now.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -227,9 +247,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              "By continuing you agree to LifePilot's Terms & Privacy Policy.",
+              'Your account and data are stored on this device.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             AuthActionButton(
               label: 'Create account',
@@ -237,14 +267,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onPressed: _loading ? null : _register,
             ),
             const SizedBox(height: 16),
-            const AuthDivider(),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.g_mobiledata, size: 22),
-              label: const Text('Continue with Google'),
-            ),
-            const SizedBox(height: 12),
             AuthFooterLink(
               leading: 'Already have an account?',
               action: 'Log in',
@@ -268,43 +290,27 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _email = TextEditingController();
-  String? _message;
-
-  @override
-  void dispose() {
-    _email.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
       showBackButton: true,
       title: 'Reset your password',
       subtitle:
-          "Enter the email linked to your account - we'll send a 6-digit code to reset it.",
+          'Password recovery requires a verified email service, which is not configured for local accounts.',
       form: Column(
         children: [
-          AppAuthField(
-            controller: _email,
-            label: 'Email address',
-            icon: Icons.mail_outline,
-            keyboardType: TextInputType.emailAddress,
+          const Icon(Icons.info_outline, size: 32),
+          const SizedBox(height: 12),
+          Text(
+            'No reset email will be sent. Your password is verified locally on this device.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 16),
           AuthActionButton(
-            label: 'Send reset code',
-            onPressed: () => setState(
-              () => _message = validateEmail(_email.text) == null
-                  ? 'Check your inbox for the reset code.'
-                  : 'Enter a valid email address.',
-            ),
+            label: 'Back to sign in',
+            onPressed: () => Navigator.pop(context),
           ),
-          if (_message != null) ...[
-            const SizedBox(height: 12),
-            Text(_message!, style: Theme.of(context).textTheme.bodySmall),
-          ],
         ],
       ),
     );
@@ -428,6 +434,7 @@ class AppAuthField extends StatelessWidget {
     keyboardType: keyboardType,
     validator: validator,
     decoration: InputDecoration(
+      labelText: label,
       hintText: label,
       prefixIcon: icon == null ? null : Icon(icon),
       suffixIcon: suffixIcon,
