@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../profile/services/user_service.dart';
 import '../../tasks/models/task.dart';
@@ -19,6 +20,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<Task> _tasks = [];
   bool _isLoading = true;
   bool _remindersEnabled = true;
+  String? _error;
 
   @override
   void initState() {
@@ -27,26 +29,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _loadReminders() async {
-    final service = TaskService(userId: widget.userId);
-    final tasks = await service.loadTasks();
-    final preferences = await UserService().loadPreferences();
-    if (!mounted) return;
-    setState(() {
-      _remindersEnabled =
-          preferences.notificationsEnabled && preferences.reminderEnabled;
-      _tasks =
-          tasks
-              .where(
-                (task) =>
-                    _remindersEnabled &&
-                    task.hasReminder &&
-                    !task.completed &&
-                    task.reminderDate!.isAfter(DateTime.now()),
-              )
-              .toList()
-            ..sort((a, b) => a.reminderDate!.compareTo(b.reminderDate!));
-      _isLoading = false;
-    });
+    try {
+      final service = TaskService(userId: widget.userId);
+      final tasks = await service.loadTasks();
+      final preferences = await UserService().loadPreferences();
+      if (!mounted) return;
+      setState(() {
+        _remindersEnabled =
+            preferences.notificationsEnabled && preferences.reminderEnabled;
+        _tasks =
+            tasks
+                .where(
+                  (task) =>
+                      _remindersEnabled &&
+                      task.hasReminder &&
+                      !task.completed &&
+                      task.reminderDate!.isAfter(DateTime.now()),
+                )
+                .toList()
+              ..sort((a, b) => a.reminderDate!.compareTo(b.reminderDate!));
+        _error = null;
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _clearAll() async {
@@ -69,21 +80,44 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
     if (confirmed != true) return;
     final service = TaskService(userId: widget.userId);
-    final allTasks = await service.loadTasks();
-    for (final task in allTasks) {
-      task.reminderEnabled = false;
-      task.reminderDate = null;
+    try {
+      final allTasks = await service.loadTasks();
+      for (final task in allTasks) {
+        task.reminderEnabled = false;
+        task.reminderDate = null;
+      }
+      await service.saveTasks(allTasks);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
     }
-    await service.saveTasks(allTasks);
     await NotificationService.instance.cancelAll();
     if (!mounted) return;
     setState(() => _tasks.clear());
   }
 
   Future<void> _clearReminder(Task task) async {
+    final oldEnabled = task.reminderEnabled;
+    final oldDate = task.reminderDate;
     task.reminderEnabled = false;
     task.reminderDate = null;
-    await TaskService(userId: widget.userId).updateTask(task);
+    try {
+      await TaskService(userId: widget.userId).updateTask(task);
+    } on ApiException catch (error) {
+      task
+        ..reminderEnabled = oldEnabled
+        ..reminderDate = oldDate;
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
     await NotificationService.instance.cancelReminder(task);
     if (!mounted) return;
     setState(() => _tasks.removeWhere((item) => item.id == task.id));
@@ -100,6 +134,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     ),
     body: _isLoading
         ? const Center(child: CircularProgressIndicator())
+        : _error != null
+        ? Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_error!, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _loadReminders,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          )
         : _tasks.isEmpty
         ? Center(
             child: Padding(

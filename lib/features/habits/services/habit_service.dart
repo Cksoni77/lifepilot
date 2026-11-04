@@ -1,51 +1,57 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
-
+import '../../../core/network/api_client.dart';
 import '../models/habit.dart';
 
 class HabitService {
-  HabitService({required this.userId});
+  HabitService({required this.userId, ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient.instance;
 
   final String userId;
+  final ApiClient _apiClient;
 
   Future<List<Habit>> loadHabits() async {
-    final prefs = await SharedPreferences.getInstance();
-    final values = prefs.getStringList(_key) ?? const [];
-    return values
-        .map(
-          (value) => Habit.fromJson(jsonDecode(value) as Map<String, dynamic>),
-        )
+    final response = await _apiClient.get('/api/habits') as List<dynamic>;
+    return response
+        .map((value) => Habit.fromJson(value as Map<String, dynamic>))
         .toList();
   }
 
   Future<void> saveHabits(List<Habit> habits) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      _key,
-      habits.map((habit) => jsonEncode(habit.toJson())).toList(),
-    );
+    final existing = await loadHabits();
+    final existingIds = existing.map((habit) => habit.id).toSet();
+    final desiredIds = <String>{};
+    for (final habit in habits) {
+      if (existingIds.contains(habit.id)) {
+        desiredIds.add(habit.id);
+        await updateHabit(habit);
+      } else {
+        await addHabit(habit);
+      }
+    }
+    for (final habit in existing) {
+      if (!desiredIds.contains(habit.id) &&
+          habits.every((desired) => desired.id != habit.id)) {
+        await deleteHabit(habit.id);
+      }
+    }
   }
 
   Future<void> addHabit(Habit habit) async {
     _validateHabit(habit);
-    final habits = await loadHabits();
-    if (habits.any((existing) => existing.id == habit.id)) {
-      throw StateError('A habit with this ID already exists.');
-    }
-    habits.add(habit);
-    await saveHabits(habits);
+    final response =
+        await _apiClient.post('/api/habits', body: _toRequest(habit))
+            as Map<String, dynamic>;
+    habit.id = response['id'] as String;
   }
 
   Future<void> updateHabit(Habit updatedHabit) async {
     _validateHabit(updatedHabit);
-    final habits = await loadHabits();
-    final index = habits.indexWhere((habit) => habit.id == updatedHabit.id);
-    if (index < 0) throw StateError('This habit no longer exists.');
-
-    final existingDates = habits[index].completedDates;
+    final matches = (await loadHabits())
+        .where((habit) => habit.id == updatedHabit.id)
+        .toList();
+    final existing = matches.isEmpty ? null : matches.first;
+    if (existing == null) throw StateError('This habit no longer exists.');
     final mergedDates = {
-      ...existingDates,
+      ...existing.completedDates,
       ...updatedHabit.completedDates,
     }.toList()..sort();
     if (mergedDates.any((date) => date.isBefore(updatedHabit.startDate))) {
@@ -54,21 +60,24 @@ class HabitService {
     updatedHabit.completedDates
       ..clear()
       ..addAll(mergedDates);
-    habits[index] = updatedHabit;
-    await saveHabits(habits);
+    await _apiClient.put(
+      '/api/habits/${updatedHabit.id}',
+      body: _toRequest(updatedHabit),
+    );
   }
 
   Future<void> deleteHabit(String habitId) async {
-    final habits = await loadHabits();
-    habits.removeWhere((habit) => habit.id == habitId);
-    await saveHabits(habits);
+    await _apiClient.delete('/api/habits/$habitId');
   }
 
   Future<bool> markCompleted(String habitId, DateTime date) async {
     final habits = await loadHabits();
     final index = habits.indexWhere((habit) => habit.id == habitId);
     if (index < 0 || !habits[index].markCompleted(date)) return false;
-    await saveHabits(habits);
+    await _apiClient.post(
+      '/api/habits/$habitId/complete',
+      body: {'date': _dateOnly(date)},
+    );
     return true;
   }
 
@@ -76,11 +85,11 @@ class HabitService {
     final habits = await loadHabits();
     final index = habits.indexWhere((habit) => habit.id == habitId);
     if (index < 0 || !habits[index].undoCompletion(date)) return false;
-    await saveHabits(habits);
+    await _apiClient.delete(
+      '/api/habits/$habitId/completions?date=${_dateOnly(date)}',
+    );
     return true;
   }
-
-  String get _key => 'habits_$userId';
 
   void _validateHabit(Habit habit) {
     if (habit.name.trim().isEmpty) {
@@ -91,4 +100,22 @@ class HabitService {
       throw ArgumentError('Select at least one weekday for a custom schedule.');
     }
   }
+
+  Map<String, dynamic> _toRequest(Habit habit) => {
+    'clientId': habit.id,
+    'name': habit.name,
+    'description': habit.description,
+    'frequency': habit.frequency.name,
+    'selectedWeekdays': habit.selectedWeekdays,
+    'targetDuration': habit.targetDuration,
+    'durationUnit': habit.durationUnit.name,
+    'category': habit.category.name,
+    'startDate': _dateOnly(habit.startDate),
+    'completedDates': habit.completedDates.map(_dateOnly).toList(),
+  };
+
+  String _dateOnly(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 }

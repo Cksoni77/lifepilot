@@ -1,170 +1,110 @@
 import 'dart:convert';
-import 'dart:math';
 
-import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/network/api_client.dart';
 import '../models/user.dart';
 
 class AuthService {
-  static const _usersKey = 'local_users';
-  static const _legacyUserKey = 'local_user';
-  static const _legacyPasswordKey = 'local_user_password';
-  static const _tokenKey = 'local_auth_token';
+  AuthService({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient.instance;
+
+  final ApiClient _apiClient;
 
   Future<User?> currentUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString(_tokenKey);
-    if (userId == null) return null;
-    final accounts = await _loadAccounts(prefs);
-    final account = accounts[userId];
-    return account == null
-        ? null
-        : User.fromJson(account['user'] as Map<String, dynamic>);
+    await _sanitizeLegacyCredentials();
+    if (await _apiClient.tokenStore.readAccessToken() == null) return null;
+    final response = await _apiClient.get('/api/users/me');
+    return User.fromJson(response as Map<String, dynamic>);
   }
 
-  Future<User?> registeredUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accounts = await _loadAccounts(prefs);
-    if (accounts.isEmpty) return null;
-    return User.fromJson(accounts.values.first['user'] as Map<String, dynamic>);
-  }
-
-  Future<bool> isLoggedIn() async => (await currentUser()) != null;
+  Future<bool> isLoggedIn() async => await currentUser() != null;
 
   Future<User> register({
     required String name,
     required String email,
     required String password,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final accounts = await _loadAccounts(prefs);
-    final normalizedEmail = email.trim().toLowerCase();
-    if (accounts.values.any(
-      (account) =>
-          (account['user'] as Map<String, dynamic>)['email'] == normalizedEmail,
-    )) {
-      throw StateError('An account with this email already exists.');
+    await _sanitizeLegacyCredentials();
+    try {
+      return await _authenticate('/api/auth/register', {
+        'name': name.trim(),
+        'email': email.trim().toLowerCase(),
+        'password': password,
+      });
+    } on ApiException catch (error) {
+      if (error.statusCode == 409) throw StateError(error.message);
+      rethrow;
     }
-
-    final user = User(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      name: name.trim(),
-      email: normalizedEmail,
-    );
-
-    final salt = _generateSalt();
-    final passwordHash = _hashPassword(password, salt);
-
-    accounts[user.id] = {
-      'user': user.toJson(),
-      'passwordHash': passwordHash,
-      'passwordSalt': salt,
-    };
-
-    await _saveAccounts(prefs, accounts);
-    await prefs.setString(_tokenKey, user.id);
-    return user;
   }
 
   Future<User?> login({required String email, required String password}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final accounts = await _loadAccounts(prefs);
-    final accountEntry = accounts.values
-        .cast<Map<String, dynamic>?>()
-        .firstWhere(
-          (account) =>
-              (account?['user'] as Map<String, dynamic>?)?['email'] ==
-              email.trim().toLowerCase(),
-          orElse: () => null,
-        );
-
-    if (accountEntry == null) {
-      return null;
+    try {
+      return await _authenticate('/api/auth/login', {
+        'email': email.trim().toLowerCase(),
+        'password': password,
+      });
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) return null;
+      rethrow;
     }
-
-    final storedHash = accountEntry['passwordHash'] as String?;
-    final storedSalt = accountEntry['passwordSalt'] as String?;
-    final legacyPassword = accountEntry['password'] as String?;
-
-    final matchesHash =
-        storedHash != null &&
-        storedSalt != null &&
-        _hashPassword(password, storedSalt) == storedHash;
-
-    final matchesLegacy = legacyPassword != null && legacyPassword == password;
-
-    if (!matchesHash && !matchesLegacy) {
-      return null;
-    }
-
-    final user = User.fromJson(accountEntry['user'] as Map<String, dynamic>);
-    await prefs.setString(_tokenKey, user.id);
-
-    if (storedHash == null || storedSalt == null) {
-      final migratedSalt = _generateSalt();
-      final migratedHash = _hashPassword(password, migratedSalt);
-      accountEntry['passwordHash'] = migratedHash;
-      accountEntry['passwordSalt'] = migratedSalt;
-      accountEntry.remove('password');
-      await _saveAccounts(prefs, accounts);
-    }
-
-    return user;
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
+    final refreshToken = await _apiClient.tokenStore.readRefreshToken();
+    try {
+      if (refreshToken != null) {
+        await _apiClient.post(
+          '/api/auth/logout',
+          body: {'refreshToken': refreshToken},
+        );
+      }
+    } finally {
+      await _apiClient.tokenStore.clear();
+    }
   }
 
   Future<void> updateUser(User user) async {
-    final prefs = await SharedPreferences.getInstance();
-    final accounts = await _loadAccounts(prefs);
-    final account = accounts[user.id];
-    if (account == null) return;
-    account['user'] = user.toJson();
-    await _saveAccounts(prefs, accounts);
+    final response = await _apiClient.put(
+      '/api/users/me',
+      body: {'name': user.name},
+    );
+    final updated = User.fromJson(response as Map<String, dynamic>);
+    user
+      ..name = updated.name
+      ..email = updated.email;
   }
 
-  Future<Map<String, Map<String, dynamic>>> _loadAccounts(
-    SharedPreferences prefs,
-  ) async {
-    final encodedAccounts = prefs.getString(_usersKey);
-    if (encodedAccounts != null) {
-      final decoded = jsonDecode(encodedAccounts) as Map<String, dynamic>;
-      return decoded.map(
-        (id, value) => MapEntry(id, Map<String, dynamic>.from(value as Map)),
-      );
+  Future<User> _authenticate(String path, Map<String, dynamic> body) async {
+    final response =
+        await _apiClient.post(path, body: body) as Map<String, dynamic>;
+    await _apiClient.tokenStore.saveTokens(
+      response['accessToken'] as String,
+      response['refreshToken'] as String,
+    );
+    return User.fromJson(response['user'] as Map<String, dynamic>);
+  }
+
+  Future<void> _sanitizeLegacyCredentials() async {
+    final preferences = await SharedPreferences.getInstance();
+    final storedAccounts = preferences.getString('local_users');
+    if (storedAccounts != null) {
+      try {
+        final accounts = jsonDecode(storedAccounts) as Map<String, dynamic>;
+        for (final value in accounts.values) {
+          if (value is Map<String, dynamic>) {
+            value
+              ..remove('password')
+              ..remove('passwordHash')
+              ..remove('passwordSalt');
+          }
+        }
+        await preferences.setString('local_users', jsonEncode(accounts));
+      } on FormatException {
+        await preferences.remove('local_users');
+      }
     }
-
-    final legacyUser = prefs.getString(_legacyUserKey);
-    if (legacyUser == null) return <String, Map<String, dynamic>>{};
-
-    final user = jsonDecode(legacyUser) as Map<String, dynamic>;
-    final id = user['id'] as String;
-    final legacyPassword = prefs.getString(_legacyPasswordKey) ?? '';
-
-    return {
-      id: {'user': user, 'password': legacyPassword},
-    };
-  }
-
-  Future<void> _saveAccounts(
-    SharedPreferences prefs,
-    Map<String, Map<String, dynamic>> accounts,
-  ) async {
-    await prefs.setString(_usersKey, jsonEncode(accounts));
-  }
-
-  String _generateSalt() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-    return base64Url.encode(bytes);
-  }
-
-  String _hashPassword(String password, String salt) {
-    final digest = sha256.convert(utf8.encode('$salt:$password'));
-    return digest.toString();
+    await preferences.remove('local_user_password');
+    await preferences.remove('local_auth_token');
   }
 }

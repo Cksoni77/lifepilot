@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/habit.dart';
 import '../services/habit_service.dart';
@@ -17,6 +18,7 @@ class _HabitScreenState extends State<HabitScreen> {
   final habits = <Habit>[];
   late final HabitService _habitService;
   bool _isLoading = true;
+  String? _loadError;
 
   @override
   void initState() {
@@ -26,14 +28,23 @@ class _HabitScreenState extends State<HabitScreen> {
   }
 
   Future<void> _loadHabits() async {
-    final loaded = await _habitService.loadHabits();
-    if (!mounted) return;
-    setState(() {
-      habits
-        ..clear()
-        ..addAll(loaded);
-      _isLoading = false;
-    });
+    try {
+      final loaded = await _habitService.loadHabits();
+      if (!mounted) return;
+      setState(() {
+        habits
+          ..clear()
+          ..addAll(loaded);
+        _loadError = null;
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.message;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _addHabit() async {
@@ -65,11 +76,11 @@ class _HabitScreenState extends State<HabitScreen> {
       changed = isDone
           ? await _habitService.undoCompletion(habit.id, today)
           : await _habitService.markCompleted(habit.id, today);
-    } catch (_) {
+    } on ApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not update this habit.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
       return;
     }
@@ -130,11 +141,11 @@ class _HabitScreenState extends State<HabitScreen> {
     if (confirmed != true) return;
     try {
       await _habitService.deleteHabit(habit.id);
-    } catch (_) {
+    } on ApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not delete this habit.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
       return;
     }
@@ -158,24 +169,42 @@ class _HabitScreenState extends State<HabitScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        _HabitStats(habits: habits),
-        const SizedBox(height: 16),
         if (_isLoading)
           const Padding(
             padding: EdgeInsets.all(32),
             child: Center(child: CircularProgressIndicator()),
           )
-        else if (habits.isEmpty)
-          const Card(
+        else if (_loadError != null)
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text(
-                'No habits yet. Add one to start tracking your consistency.',
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(_loadError!, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _loadHabits,
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
             ),
           )
-        else
-          ...habits.map(_habitCard),
+        else ...[
+          _HabitStats(habits: habits),
+          const SizedBox(height: 16),
+          if (habits.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'No habits yet. Add one to start tracking your consistency.',
+                ),
+              ),
+            )
+          else
+            ...habits.map(_habitCard),
+        ],
       ],
     ),
     floatingActionButton: FloatingActionButton.extended(

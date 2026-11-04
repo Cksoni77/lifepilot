@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/goal.dart';
 import '../services/goal_service.dart';
@@ -17,6 +18,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   late final GoalService _service;
   final List<Goal> _goals = [];
   bool _isLoading = true;
+  String? _loadError;
 
   @override
   void initState() {
@@ -26,14 +28,23 @@ class _GoalsScreenState extends State<GoalsScreen> {
   }
 
   Future<void> _loadGoals() async {
-    final goals = await _service.loadGoals();
-    if (!mounted) return;
-    setState(() {
-      _goals
-        ..clear()
-        ..addAll(goals);
-      _isLoading = false;
-    });
+    try {
+      final goals = await _service.loadGoals();
+      if (!mounted) return;
+      setState(() {
+        _goals
+          ..clear()
+          ..addAll(goals);
+        _loadError = null;
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.message;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _editGoal([Goal? existing]) async {
@@ -42,15 +53,28 @@ class _GoalsScreenState extends State<GoalsScreen> {
       builder: (_) => _GoalEditor(goal: existing),
     );
     if (!mounted || goal == null) return;
-    setState(() {
-      final index = _goals.indexWhere((item) => item.id == goal.id);
-      if (index < 0) {
-        _goals.add(goal);
-      } else {
-        _goals[index] = goal;
+    final updatedGoals = [..._goals];
+    final index = updatedGoals.indexWhere((item) => item.id == goal.id);
+    if (index < 0) {
+      updatedGoals.add(goal);
+    } else {
+      updatedGoals[index] = goal;
+    }
+    try {
+      await _service.saveGoals(updatedGoals);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
+      return;
+    }
+    setState(() {
+      _goals
+        ..clear()
+        ..addAll(updatedGoals);
     });
-    await _service.saveGoals(_goals);
   }
 
   Future<void> _deleteGoal(Goal goal) async {
@@ -72,13 +96,37 @@ class _GoalsScreenState extends State<GoalsScreen> {
       ),
     );
     if (confirmed != true) return;
-    setState(() => _goals.removeWhere((item) => item.id == goal.id));
-    await _service.saveGoals(_goals);
+    final updatedGoals = _goals.where((item) => item.id != goal.id).toList();
+    try {
+      await _service.saveGoals(updatedGoals);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() => _goals.removeWhere((item) => item.id == goal.id));
+    }
   }
 
   Future<void> _saveProgress(Goal goal, double progress) async {
-    setState(() => goal.progress = progress);
-    await _service.saveGoals(_goals);
+    final previous = goal.progress;
+    goal.progress = progress;
+    try {
+      await _service.saveGoals(_goals);
+      if (mounted) setState(() {});
+    } on ApiException catch (error) {
+      goal.progress = previous;
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 
   @override
@@ -95,6 +143,17 @@ class _GoalsScreenState extends State<GoalsScreen> {
     ),
     body: _isLoading
         ? const Center(child: CircularProgressIndicator())
+        : _loadError != null
+        ? Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_loadError!, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(onPressed: _loadGoals, child: const Text('Retry')),
+              ],
+            ),
+          )
         : _goals.isEmpty
         ? Center(
             child: Padding(

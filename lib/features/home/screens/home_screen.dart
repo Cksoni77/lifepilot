@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/bottom_nav_bar.dart';
 import '../../../core/widgets/progress_ring.dart';
@@ -81,6 +82,8 @@ class _DashboardState extends State<_Dashboard> {
   List<Habit> _habits = [];
   bool _isLoading = true;
   bool _isLoadingHabits = true;
+  String? _taskLoadError;
+  String? _habitLoadError;
 
   @override
   void initState() {
@@ -98,25 +101,39 @@ class _DashboardState extends State<_Dashboard> {
   // ====================================================
 
   Future<void> _loadTasks() async {
-    final tasks = await _taskService.loadTasks();
-
-    if (!mounted) {
-      return;
+    try {
+      final tasks = await _taskService.loadTasks();
+      if (!mounted) return;
+      setState(() {
+        _tasks = tasks;
+        _taskLoadError = null;
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _taskLoadError = error.message;
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _tasks = tasks;
-      _isLoading = false;
-    });
   }
 
   Future<void> _loadHabits() async {
-    final habits = await _habitService.loadHabits();
-    if (!mounted) return;
-    setState(() {
-      _habits = habits;
-      _isLoadingHabits = false;
-    });
+    try {
+      final habits = await _habitService.loadHabits();
+      if (!mounted) return;
+      setState(() {
+        _habits = habits;
+        _habitLoadError = null;
+        _isLoadingHabits = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _habitLoadError = error.message;
+        _isLoadingHabits = false;
+      });
+    }
   }
 
   // ====================================================
@@ -169,12 +186,21 @@ class _DashboardState extends State<_Dashboard> {
   // ====================================================
 
   Future<void> _toggleTask(Task task, bool completed) async {
+    try {
+      await _taskService.setCompleted(task.id, completed);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
+    if (!mounted) return;
     setState(() {
       task.completed = completed;
       task.completedAt = completed ? DateTime.now() : null;
     });
-
-    await _taskService.updateTask(task);
 
     if (completed) {
       await NotificationService.instance.cancelReminder(task);
@@ -549,6 +575,19 @@ class _DashboardState extends State<_Dashboard> {
       );
     }
 
+    if (_taskLoadError != null) {
+      return Card(
+        child: ListTile(
+          title: Text(_taskLoadError!),
+          trailing: IconButton(
+            onPressed: _loadTasks,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Retry loading tasks',
+          ),
+        ),
+      );
+    }
+
     if (_todayTasks.isEmpty) {
       return Card(
         child: Padding(
@@ -639,6 +678,18 @@ class _DashboardState extends State<_Dashboard> {
   Widget _buildHabitProgress() {
     if (_isLoadingHabits) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (_habitLoadError != null) {
+      return Card(
+        child: ListTile(
+          title: Text(_habitLoadError!),
+          trailing: IconButton(
+            onPressed: _loadHabits,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Retry loading habits',
+          ),
+        ),
+      );
     }
     if (_habits.isEmpty) {
       return Card(

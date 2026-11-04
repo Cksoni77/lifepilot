@@ -3,11 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifepilot/shared_controllers/app_controller.dart';
 import 'package:lifepilot/features/profile/services/user_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'helpers/fake_api.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('restores and persists theme and notification preferences', () async {
+    installFakeApi();
     SharedPreferences.setMockInitialValues({
       'onboardingCompleted': true,
       'theme': 'dark',

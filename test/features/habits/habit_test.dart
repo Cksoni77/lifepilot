@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifepilot/core/utils/date_utils.dart';
@@ -8,11 +6,15 @@ import 'package:lifepilot/features/habits/screens/habit_screen.dart';
 import 'package:lifepilot/features/habits/services/habit_service.dart';
 import 'package:lifepilot/features/tasks/models/task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/fake_api.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeApi();
+  });
 
   testWidgets('habit creation validates and displays the new habit', (
     tester,
@@ -334,18 +336,11 @@ void main() {
       expect(restored.completedDates, habit.completedDates);
 
       final legacyDate = DateTime(2026, 9, 12);
-      SharedPreferences.setMockInitialValues({
-        'habits_legacy-user': [
-          jsonEncode({
-            'id': 'legacy',
-            'name': 'Legacy habit',
-            'completedDates': [legacyDate.toIso8601String()],
-          }),
-        ],
+      final legacy = Habit.fromJson({
+        'id': 'legacy',
+        'name': 'Legacy habit',
+        'completedDates': [legacyDate.toIso8601String()],
       });
-      final legacy = (await HabitService(
-        userId: 'legacy-user',
-      ).loadHabits()).single;
       expect(legacy.name, 'Legacy habit');
       expect(legacy.description, isEmpty);
       expect(legacy.frequency, HabitFrequency.daily);

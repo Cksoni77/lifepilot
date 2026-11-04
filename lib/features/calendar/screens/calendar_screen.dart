@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../notifications/services/notification_service.dart';
 import '../../tasks/models/task.dart';
@@ -20,6 +21,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   late DateTime _visibleMonth;
   bool _monthView = true;
   bool _isLoading = true;
+  String? _loadError;
   late final TaskService _taskService;
   List<Task> _tasks = [];
 
@@ -34,12 +36,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _loadTasks() async {
-    final tasks = await _taskService.loadTasks();
-    if (!mounted) return;
-    setState(() {
-      _tasks = tasks;
-      _isLoading = false;
-    });
+    try {
+      final tasks = await _taskService.loadTasks();
+      if (!mounted) return;
+      setState(() {
+        _tasks = tasks;
+        _loadError = null;
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.message;
+        _isLoading = false;
+      });
+    }
   }
 
   List<Task> get _selectedTasks =>
@@ -96,96 +107,122 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _toggleTask(Task task, bool completed) async {
+    try {
+      await _taskService.setCompleted(task.id, completed);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
+    if (!mounted) return;
     task.completed = completed;
     task.completedAt = completed ? DateTime.now() : null;
-    await _taskService.updateTask(task);
-    if (!mounted) return;
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          children: [
-            Row(
-              children: [
-                Text(
-                  'Calendar',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const Spacer(),
-                const Icon(
-                  Icons.calendar_month_outlined,
-                  color: AppColors.primary,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: true, label: Text('Month')),
-                ButtonSegment(value: false, label: Text('Week')),
-              ],
-              selected: {_monthView},
-              onSelectionChanged: (value) =>
-                  setState(() => _monthView = value.first),
-            ),
-            const SizedBox(height: 16),
-            if (_monthView)
-              _MonthCalendar(
-                selected: _selected,
-                visibleMonth: _visibleMonth,
-                tasks: _tasks,
-                onSelected: _selectDate,
-                onMonthChanged: _changeMonth,
-              )
-            else
-              _WeekCalendar(
-                selected: _selected,
-                tasks: _tasks,
-                onSelected: _selectDate,
-              ),
-            const Divider(height: 28),
-            Text(
-              'Tasks for ${_monthName(_selected.month)} ${_selected.day}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 10),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_selectedTasks.isEmpty)
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text('No tasks scheduled for this day.'),
-                ),
-              )
-            else
-              ..._selectedTasks.map(
-                (task) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: Checkbox(
-                      value: task.completed,
-                      onChanged: (value) => _toggleTask(task, value ?? false),
-                      semanticLabel:
-                          'Mark ${task.title} ${task.completed ? 'incomplete' : 'complete'}',
-                    ),
-                    title: Text(task.title),
-                    subtitle: Text(
-                      '${task.category.label} · ${task.priority.label}',
-                    ),
-                    onTap: () => _editTask(task),
-                    trailing: const Icon(Icons.chevron_right),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_loadError!, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _loadTasks,
+                    child: const Text('Retry'),
                   ),
-                ),
+                ],
               ),
-          ],
-        ),
-      ),
+            )
+          : SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Calendar',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const Spacer(),
+                      const Icon(
+                        Icons.calendar_month_outlined,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('Month')),
+                      ButtonSegment(value: false, label: Text('Week')),
+                    ],
+                    selected: {_monthView},
+                    onSelectionChanged: (value) =>
+                        setState(() => _monthView = value.first),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_monthView)
+                    _MonthCalendar(
+                      selected: _selected,
+                      visibleMonth: _visibleMonth,
+                      tasks: _tasks,
+                      onSelected: _selectDate,
+                      onMonthChanged: _changeMonth,
+                    )
+                  else
+                    _WeekCalendar(
+                      selected: _selected,
+                      tasks: _tasks,
+                      onSelected: _selectDate,
+                    ),
+                  const Divider(height: 28),
+                  Text(
+                    'Tasks for ${_monthName(_selected.month)} ${_selected.day}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 10),
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_selectedTasks.isEmpty)
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text('No tasks scheduled for this day.'),
+                      ),
+                    )
+                  else
+                    ..._selectedTasks.map(
+                      (task) => Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: Checkbox(
+                            value: task.completed,
+                            onChanged: (value) =>
+                                _toggleTask(task, value ?? false),
+                            semanticLabel:
+                                'Mark ${task.title} ${task.completed ? 'incomplete' : 'complete'}',
+                          ),
+                          title: Text(task.title),
+                          subtitle: Text(
+                            '${task.category.label} · ${task.priority.label}',
+                          ),
+                          onTap: () => _editTask(task),
+                          trailing: const Icon(Icons.chevron_right),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }

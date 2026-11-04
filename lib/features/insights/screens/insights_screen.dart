@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../habits/models/habit.dart';
 import '../../habits/services/habit_service.dart';
@@ -20,6 +21,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   List<Task> _tasks = [];
   List<Habit> _habits = [];
   bool _isLoading = true;
+  String? _loadError;
 
   @override
   void initState() {
@@ -28,14 +30,23 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Future<void> _loadData() async {
-    final tasks = await TaskService(userId: widget.userId).loadTasks();
-    final habits = await HabitService(userId: widget.userId).loadHabits();
-    if (!mounted) return;
-    setState(() {
-      _tasks = tasks;
-      _habits = habits;
-      _isLoading = false;
-    });
+    try {
+      final tasks = await TaskService(userId: widget.userId).loadTasks();
+      final habits = await HabitService(userId: widget.userId).loadHabits();
+      if (!mounted) return;
+      setState(() {
+        _tasks = tasks;
+        _habits = habits;
+        _loadError = null;
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.message;
+        _isLoading = false;
+      });
+    }
   }
 
   DateTime get _rangeStart {
@@ -108,6 +119,20 @@ class _InsightsScreenState extends State<InsightsScreen> {
       appBar: AppBar(title: const Text('Insights')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_loadError!, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _loadData,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               children: [

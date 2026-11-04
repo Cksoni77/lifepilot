@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../notifications/services/notification_service.dart';
 import '../models/task.dart';
 import '../services/task_service.dart';
@@ -25,6 +26,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
   final _searchController = TextEditingController();
 
   final List<Task> tasks = [];
+  bool _isLoading = true;
+  String? _loadError;
 
   late String _filter;
 
@@ -45,17 +48,26 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> _loadTasks() async {
-    final loaded = await _taskService.loadTasks();
-
-    if (!mounted) {
-      return;
-    }
-
     setState(() {
-      tasks
-        ..clear()
-        ..addAll(loaded);
+      _isLoading = true;
+      _loadError = null;
     });
+    try {
+      final loaded = await _taskService.loadTasks();
+      if (!mounted) return;
+      setState(() {
+        tasks
+          ..clear()
+          ..addAll(loaded);
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.message;
+        _isLoading = false;
+      });
+    }
   }
 
   // --------------------------------------------------
@@ -73,11 +85,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> _createTask(Task task) async {
+    await _taskService.addTask(task);
+    if (!mounted) return;
     setState(() {
       tasks.insert(0, task);
     });
-
-    await _taskService.addTask(task);
 
     if (task.hasReminder) {
       await NotificationService.instance.scheduleReminder(task);
@@ -125,7 +137,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
     );
     if (confirmed != true) return;
 
-    await _taskService.deleteTask(task.id);
+    try {
+      await _taskService.deleteTask(task.id);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
     if (task.hasReminder) {
       await NotificationService.instance.cancelReminder(task);
     }
@@ -141,13 +162,21 @@ class _TaskListScreenState extends State<TaskListScreen> {
   // --------------------------------------------------
 
   Future<void> _toggleTask(Task task, bool completed) async {
+    try {
+      await _taskService.setCompleted(task.id, completed);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
+    if (!mounted) return;
     setState(() {
       task.completed = completed;
-
       task.completedAt = completed ? DateTime.now() : null;
     });
-
-    await _taskService.updateTask(task);
 
     if (completed) {
       await NotificationService.instance.cancelReminder(task);
@@ -209,65 +238,86 @@ class _TaskListScreenState extends State<TaskListScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Tasks')),
 
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-        children: [
-          TextField(
-            controller: _searchController,
-            onChanged: (_) {
-              setState(() {});
-            },
-            decoration: const InputDecoration(
-              hintText: 'Search tasks',
-              prefixIcon: Icon(Icons.search),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: ['All', 'Today', 'Overdue', 'Done'].map((filter) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text('$filter · ${_countFor(filter)}'),
-                    selected: _filter == filter,
-                    onSelected: (_) {
-                      setState(() {
-                        _filter = filter;
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          if (_visibleTasks.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 80),
-              child: Center(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.checklist_outlined,
-                      size: 52,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                    Text(_loadError!, textAlign: TextAlign.center),
                     const SizedBox(height: 12),
-                    const Text('No tasks found'),
+                    FilledButton(
+                      onPressed: _loadTasks,
+                      child: const Text('Retry'),
+                    ),
                   ],
                 ),
               ),
-            ),
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+              children: [
+                TextField(
+                  controller: _searchController,
+                  onChanged: (_) {
+                    setState(() {});
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'Search tasks',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                ),
 
-          ..._visibleTasks.map(_taskCard),
-        ],
-      ),
+                const SizedBox(height: 12),
+
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ['All', 'Today', 'Overdue', 'Done'].map((filter) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text('$filter · ${_countFor(filter)}'),
+                          selected: _filter == filter,
+                          onSelected: (_) {
+                            setState(() {
+                              _filter = filter;
+                            });
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                if (_visibleTasks.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 80),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.checklist_outlined,
+                            size: 52,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text('No tasks found'),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                ..._visibleTasks.map(_taskCard),
+              ],
+            ),
 
       floatingActionButton: FloatingActionButton(
         onPressed: _addTask,

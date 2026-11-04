@@ -1,9 +1,27 @@
+import '../../../core/network/api_client.dart';
+
 class AIService {
-  Future<String> sendMessage(String message) => Future.error(
-    const AIServiceUnavailableException(
-      'AI is not connected in this build. Your message was not sent.',
-    ),
-  );
+  AIService({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient.instance;
+
+  final ApiClient _apiClient;
+
+  Future<String> sendMessage(String message) async {
+    try {
+      final response =
+          await _apiClient.post('/api/ai/chat', body: {'message': message})
+              as Map<String, dynamic>;
+      final content = response['message'];
+      if (content is! String || content.trim().isEmpty) {
+        throw const AIServiceUnavailableException(
+          'The AI service returned an empty response.',
+        );
+      }
+      return content;
+    } on ApiException catch (error) {
+      throw AIServiceUnavailableException(error.message);
+    }
+  }
 }
 
 class AIServiceUnavailableException implements Exception {

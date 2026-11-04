@@ -37,11 +37,12 @@ class Task {
     this.reminderDate,
     this.reminderEnabled = false,
     this.estimatedMinutes,
+    this.goalId,
     DateTime? createdAt,
     this.completedAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  final String id;
+  String id;
 
   String title;
   String description;
@@ -57,6 +58,7 @@ class Task {
   bool reminderEnabled;
 
   int? estimatedMinutes;
+  String? goalId;
 
   final DateTime createdAt;
 
@@ -136,6 +138,7 @@ class Task {
       'dueDate': dueDate?.toIso8601String(),
       'reminderDate': reminderDate?.toIso8601String(),
       'estimatedMinutes': estimatedMinutes,
+      'goalId': goalId,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -156,6 +159,7 @@ class Task {
       'reminderDate': reminderDate?.toIso8601String(),
       'reminderEnabled': reminderEnabled,
       'estimatedMinutes': estimatedMinutes,
+      'goalId': goalId,
       'createdAt': createdAt.toIso8601String(),
       'completedAt': completedAt?.toIso8601String(),
     };
@@ -194,6 +198,7 @@ class Task {
       reminderEnabled: json['reminderEnabled'] as bool? ?? false,
 
       estimatedMinutes: (json['estimatedMinutes'] as num?)?.toInt(),
+      goalId: json['goalId'] as String?,
 
       createdAt: json['createdAt'] == null
           ? DateTime.now()

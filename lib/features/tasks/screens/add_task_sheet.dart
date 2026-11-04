@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/task.dart';
 
@@ -155,11 +156,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     try {
       await widget.onCreate(task);
       if (mounted) Navigator.pop(context);
-    } catch (_) {
+    } on ApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save this task. Try again.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

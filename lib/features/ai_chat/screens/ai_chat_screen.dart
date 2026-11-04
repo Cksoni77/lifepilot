@@ -6,7 +6,9 @@ import '../services/ai_service.dart';
 import '../widgets/chat_bubble.dart';
 
 class AiChatScreen extends StatefulWidget {
-  const AiChatScreen({super.key});
+  const AiChatScreen({this.service, super.key});
+
+  final AIService? service;
 
   @override
   State<AiChatScreen> createState() => _AiChatScreenState();
@@ -15,9 +17,15 @@ class AiChatScreen extends StatefulWidget {
 class _AiChatScreenState extends State<AiChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final AIService _aiService = AIService();
+  late final AIService _aiService;
   final List<ChatMessage> _messages = [];
   bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _aiService = widget.service ?? AIService();
+  }
 
   @override
   void dispose() {
@@ -72,19 +80,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
           ),
         );
       });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _messages.add(
-          ChatMessage(
-            id: '${DateTime.now().microsecondsSinceEpoch}-error',
-            content:
-                'The AI service could not be reached. Please try again later.',
-            fromUser: false,
-            timestamp: DateTime.now(),
-          ),
-        );
-      });
     } finally {
       if (mounted) {
         setState(() => _isSending = false);
@@ -125,9 +120,9 @@ class _AiChatScreenState extends State<AiChatScreen> {
               children: [
                 Text('AI Co-pilot'),
                 Text(
-                  'Not connected',
+                  'Saved context',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
+                    color: Theme.of(context).colorScheme.primary,
                     fontSize: 11,
                   ),
                 ),
@@ -145,7 +140,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(28),
                       child: Text(
-                        'AI responses are not configured in this build. Messages will not be sent to an AI provider.',
+                        'Ask about your saved tasks, habits, or goals. Your account must be connected to the LifePilot backend.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),

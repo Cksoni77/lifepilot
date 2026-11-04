@@ -7,7 +7,7 @@ class Goal {
     this.targetDate,
   });
 
-  final String id;
+  String id;
   String title;
   String category;
   double progress;
