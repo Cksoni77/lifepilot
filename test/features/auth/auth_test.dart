@@ -9,34 +9,85 @@ import 'package:lifepilot/features/profile/services/user_service.dart';
 import 'package:lifepilot/features/tasks/models/task.dart';
 import 'package:lifepilot/features/tasks/services/task_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/fake_api.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('register, login, session, and logout use local storage', () async {
-    final auth = AuthService();
-    final user = await auth.register(
-      name: 'Chhotu Soni',
-      email: 'user@email.com',
-      password: 'password123',
-    );
+  test(
+    'register, login, refreshable session, and logout use the backend',
+    () async {
+      final server = FakeApiServer();
+      final tokens = MemoryTokenStore();
+      final auth = AuthService(
+        apiClient: server.createClient(tokenStore: tokens),
+      );
 
-    expect(user.email, 'user@email.com');
-    expect(await auth.isLoggedIn(), isTrue);
-    expect((await auth.currentUser())?.name, 'Chhotu Soni');
-    expect(
-      await auth.login(email: 'user@email.com', password: 'wrong'),
-      isNull,
-    );
-    expect(
-      await auth.login(email: 'user@email.com', password: 'password123'),
-      isNotNull,
-    );
+      final user = await auth.register(
+        name: 'Chhotu Soni',
+        email: 'user@email.com',
+        password: 'strong-password-123',
+      );
+      expect(user.email, 'user@email.com');
+      expect(tokens.accessToken, isNotNull);
+      expect(await auth.isLoggedIn(), isTrue);
+      expect((await auth.currentUser())?.name, 'Test');
+      expect(
+        await auth.login(email: 'user@email.com', password: 'wrong-password'),
+        isNull,
+      );
+      expect(
+        await auth.login(
+          email: 'user@email.com',
+          password: 'strong-password-123',
+        ),
+        isNotNull,
+      );
 
-    await auth.logout();
-    expect(await auth.isLoggedIn(), isFalse);
-    expect(await auth.currentUser(), isNull);
-  });
+      await auth.logout();
+      expect(tokens.accessToken, isNull);
+      expect(await auth.currentUser(), isNull);
+    },
+  );
+
+  test(
+    'legacy local credentials are erased without discarding profile data',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'local_users': jsonEncode({
+          'legacy-id': {
+            'user': {
+              'id': 'legacy-id',
+              'name': 'Legacy',
+              'email': 'old@example.com',
+            },
+            'password': 'plain-text-secret',
+            'passwordHash': 'old-hash',
+            'passwordSalt': 'old-salt',
+          },
+        }),
+        'local_user_password': 'plain-text-secret',
+        'local_auth_token': 'legacy-id',
+        'tasks_legacy-id': ['{"title":"keep my task"}'],
+      });
+
+      final auth = AuthService(apiClient: FakeApiServer().createClient());
+      expect(await auth.currentUser(), isNull);
+
+      final prefs = await SharedPreferences.getInstance();
+      final account =
+          (jsonDecode(prefs.getString('local_users')!) as Map).values.single
+              as Map;
+      expect(account['user']['name'], 'Legacy');
+      expect(account.containsKey('password'), isFalse);
+      expect(account.containsKey('passwordHash'), isFalse);
+      expect(prefs.containsKey('local_user_password'), isFalse);
+      expect(prefs.containsKey('local_auth_token'), isFalse);
+      expect(prefs.getStringList('tasks_legacy-id'), [
+        '{"title":"keep my task"}',
+      ]);
+    },
+  );
 
   test('preferences round-trip with theme and notification settings', () async {
     final service = UserService();
@@ -54,41 +105,23 @@ void main() {
     expect(restored.reminderEnabled, isTrue);
   });
 
-  test('stored password is hashed and not kept in plain text', () async {
-    final auth = AuthService();
-    await auth.register(
-      name: 'Hash User',
-      email: 'hash@example.com',
-      password: 'secret-pass',
-    );
+  test(
+    'remote task and habit data use separate authenticated API stores',
+    () async {
+      final firstApi = FakeApiServer().createClient();
+      final secondApi = FakeApiServer().createClient();
+      final firstTask = TaskService(userId: 'user-a', apiClient: firstApi);
+      final secondTask = TaskService(userId: 'user-b', apiClient: secondApi);
+      final firstHabit = HabitService(userId: 'user-a', apiClient: firstApi);
+      final secondHabit = HabitService(userId: 'user-b', apiClient: secondApi);
 
-    final prefs = await SharedPreferences.getInstance();
-    final data =
-        jsonDecode(prefs.getString('local_users') ?? '{}')
-            as Map<String, dynamic>;
-    final account = data.values.first as Map<String, dynamic>;
+      await firstTask.addTask(Task(id: 'task-a', title: 'Private task'));
+      await firstHabit.addHabit(Habit(id: 'habit-a', name: 'Private habit'));
 
-    expect(account.containsKey('passwordHash'), isTrue);
-    expect(account.containsKey('passwordSalt'), isTrue);
-    expect(account.containsKey('password'), isFalse);
-    expect(
-      (await auth.login(email: 'hash@example.com', password: 'secret-pass')),
-      isNotNull,
-    );
-  });
-
-  test('tasks and habits are isolated by user ID', () async {
-    final firstTask = TaskService(userId: 'user-a');
-    final secondTask = TaskService(userId: 'user-b');
-    final firstHabit = HabitService(userId: 'user-a');
-    final secondHabit = HabitService(userId: 'user-b');
-
-    await firstTask.saveTasks([Task(id: 'task-a', title: 'Private task')]);
-    await firstHabit.saveHabits([Habit(id: 'habit-a', name: 'Private habit')]);
-
-    expect((await secondTask.loadTasks()), isEmpty);
-    expect((await secondHabit.loadHabits()), isEmpty);
-    expect((await firstTask.loadTasks()).single.title, 'Private task');
-    expect((await firstHabit.loadHabits()).single.name, 'Private habit');
-  });
+      expect(await secondTask.loadTasks(), isEmpty);
+      expect(await secondHabit.loadHabits(), isEmpty);
+      expect((await firstTask.loadTasks()).single.title, 'Private task');
+      expect((await firstHabit.loadHabits()).single.name, 'Private habit');
+    },
+  );
 }

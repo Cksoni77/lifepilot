@@ -3,10 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lifepilot/features/goals/screens/goals_screen.dart';
 import 'package:lifepilot/features/goals/services/goal_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/fake_api.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeApi();
+  });
 
   testWidgets('goal creation validates and persists user-scoped goal data', (
     tester,

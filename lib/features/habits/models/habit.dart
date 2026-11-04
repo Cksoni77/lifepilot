@@ -47,7 +47,7 @@ class Habit {
     }
   }
 
-  final String id;
+  String id;
   String name;
   String description;
   HabitFrequency frequency;

@@ -1,13 +1,16 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifepilot/features/calendar/screens/calendar_screen.dart';
 import 'package:lifepilot/features/tasks/models/task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/fake_api.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeApi();
+  });
 
   testWidgets('calendar shows persisted tasks and supports month navigation', (
     tester,
@@ -18,9 +21,7 @@ void main() {
       title: 'Review dissertation',
       dueDate: DateTime(now.year, now.month, now.day, 15),
     );
-    SharedPreferences.setMockInitialValues({
-      'tasks_user-1': [jsonEncode(task.toJson())],
-    });
+    installFakeApi(tasks: [task.toJson()]);
     tester.view.physicalSize = const Size(640, 1280);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.resetPhysicalSize);

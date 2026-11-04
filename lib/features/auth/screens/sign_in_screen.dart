@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared_controllers/app_controller.dart';
 import '../../home/screens/home_screen.dart';
@@ -49,10 +50,10 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute<void>(builder: (_) => HomeScreen(userId: user.id)),
       );
-    } catch (_) {
+    } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = 'Unable to sign in right now. Please try again.';
+        _error = error.message;
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -186,9 +187,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on StateError catch (error) {
       if (!mounted) return;
       setState(() => _error = error.message.toString());
-    } catch (_) {
+    } on ApiException catch (error) {
       if (!mounted) return;
-      setState(() => _error = 'Unable to create your account right now.');
+      setState(() => _error = error.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -296,13 +297,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       showBackButton: true,
       title: 'Reset your password',
       subtitle:
-          'Password recovery requires a verified email service, which is not configured for local accounts.',
+          'Password recovery is unavailable until email delivery is configured for the backend account service.',
       form: Column(
         children: [
           const Icon(Icons.info_outline, size: 32),
           const SizedBox(height: 12),
           Text(
-            'No reset email will be sent. Your password is verified locally on this device.',
+            'No reset email will be sent. Your account password is never stored on this device.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -525,6 +526,6 @@ String? validateEmail(String? value) {
 
 String? validatePassword(String? value) {
   if (value == null || value.isEmpty) return 'Password is required';
-  if (value.length < 8) return 'Use at least 8 characters';
+  if (value.length < 12) return 'Use at least 12 characters';
   return null;
 }

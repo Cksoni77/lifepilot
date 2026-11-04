@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
 import '../../auth/screens/sign_in_screen.dart';
 import '../../notifications/services/notification_service.dart';
 import '../../tasks/services/task_service.dart';
@@ -17,12 +18,24 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _setNotifications(AppController controller, bool enabled) async {
     await controller.setNotificationsEnabled(enabled);
-    await _syncTaskReminders(controller);
+    await _syncTaskRemindersWithFeedback(controller);
   }
 
   Future<void> _setReminders(AppController controller, bool enabled) async {
     await controller.setRemindersEnabled(enabled);
-    await _syncTaskReminders(controller);
+    await _syncTaskRemindersWithFeedback(controller);
+  }
+
+  Future<void> _syncTaskRemindersWithFeedback(AppController controller) async {
+    try {
+      await _syncTaskReminders(controller);
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 
   Future<void> _syncTaskReminders(AppController controller) async {
@@ -47,7 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Log out?'),
-        content: const Text('You can sign back in with your local account.'),
+        content: const Text('You can sign back in to your LifePilot account.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -61,7 +74,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (confirmed != true) return;
-    await controller.logout();
+    try {
+      await controller.logout();
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => const LoginScreen()),

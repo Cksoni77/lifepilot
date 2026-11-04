@@ -2,12 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lifepilot/main.dart';
+import 'helpers/fake_api.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    installFakeApi();
   });
 
   testWidgets('app shows splash screen and then login screen', (

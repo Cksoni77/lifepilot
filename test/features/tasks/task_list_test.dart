@@ -1,19 +1,20 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifepilot/features/tasks/models/task.dart';
 import 'package:lifepilot/features/tasks/screens/task_list_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/fake_api.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeApi();
+  });
 
   testWidgets('task actions open the prefilled edit sheet', (tester) async {
     final task = Task(id: 'task-1', title: 'Review dissertation');
-    SharedPreferences.setMockInitialValues({
-      'tasks_user-1': [jsonEncode(task.toJson())],
-    });
+    installFakeApi(tasks: [task.toJson()]);
 
     await tester.pumpWidget(
       const MaterialApp(home: TaskListScreen(userId: 'user-1')),
@@ -39,7 +40,7 @@ void main() {
   });
 
   testWidgets('task sheet fits a compact phone viewport', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    installFakeApi();
     tester.view.physicalSize = const Size(640, 1280);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.resetPhysicalSize);

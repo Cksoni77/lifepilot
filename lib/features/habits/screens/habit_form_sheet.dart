@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/network/api_client.dart';
 import 'package:flutter/services.dart';
 
 import '../models/habit.dart';
@@ -127,14 +129,14 @@ class _HabitFormSheetState extends State<HabitFormSheet> {
     try {
       await widget.onSave(habit);
       if (mounted) Navigator.pop(context);
-    } catch (error) {
+    } on StateError catch (error) {
       if (mounted) {
-        setState(
-          () => _errorMessage = error is StateError
-              ? error.message.toString()
-              : 'Could not save this habit. Please try again.',
-        );
+        setState(() => _errorMessage = error.message.toString());
       }
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message);
+    } on ArgumentError catch (error) {
+      if (mounted) setState(() => _errorMessage = error.message.toString());
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

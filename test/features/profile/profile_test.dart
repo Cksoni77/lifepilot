@@ -5,10 +5,14 @@ import 'package:lifepilot/features/auth/services/auth_service.dart';
 import 'package:lifepilot/features/profile/screens/profile_screen.dart';
 import 'package:lifepilot/shared_controllers/app_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../helpers/fake_api.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeApi();
+  });
 
   testWidgets('confirmed logout clears session and opens sign in', (
     tester,
@@ -16,7 +20,7 @@ void main() {
     await AuthService().register(
       name: 'Profile User',
       email: 'profile@example.com',
-      password: 'password123',
+      password: 'password1234',
     );
     final controller = AppController();
     addTearDown(controller.dispose);

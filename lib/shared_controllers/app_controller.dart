@@ -99,8 +99,11 @@ class AppController extends ChangeNotifier {
   );
 
   Future<void> logout() async {
-    await _authService.logout();
-    refreshUser(null);
+    try {
+      await _authService.logout();
+    } finally {
+      refreshUser(null);
+    }
   }
 
   static AppController of(BuildContext context) {
