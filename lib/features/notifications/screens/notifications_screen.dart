@@ -1,110 +1,172 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../models/app_notification.dart';
+import '../../profile/services/user_service.dart';
+import '../../tasks/models/task.dart';
+import '../../tasks/services/task_service.dart';
+import '../services/notification_service.dart';
 
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
+class NotificationsScreen extends StatefulWidget {
+  const NotificationsScreen({required this.userId, super.key});
 
-  static final items = <AppNotification>[
-    AppNotification(
-      id: 'ai',
-      title: 'AI suggestion',
-      body: 'Move "Read" to mornings for a better streak?',
-      type: NotificationType.aiSuggestion,
-      timestamp: DateTime(2026, 8, 8),
-    ),
-    AppNotification(
-      id: 'done',
-      title: 'Task completed',
-      body: '"Morning workout" marked done. Nice work.',
-      type: NotificationType.taskCompleted,
-      timestamp: DateTime(2026, 8, 8),
-    ),
-    AppNotification(
-      id: 'streak',
-      title: 'Streak reminder',
-      body: 'Log "Water" before midnight to keep your streak.',
-      type: NotificationType.streakReminder,
-      timestamp: DateTime(2026, 8, 8),
-    ),
-    AppNotification(
-      id: 'event',
-      title: 'Event tomorrow',
-      body: '"Team sync" at 10:00 AM.',
-      type: NotificationType.event,
-      timestamp: DateTime(2026, 8, 7),
-    ),
-  ];
+  final String userId;
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  List<Task> _tasks = [];
+  bool _isLoading = true;
+  bool _remindersEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReminders();
+  }
+
+  Future<void> _loadReminders() async {
+    final service = TaskService(userId: widget.userId);
+    final tasks = await service.loadTasks();
+    final preferences = await UserService().loadPreferences();
+    if (!mounted) return;
+    setState(() {
+      _remindersEnabled =
+          preferences.notificationsEnabled && preferences.reminderEnabled;
+      _tasks =
+          tasks
+              .where(
+                (task) =>
+                    _remindersEnabled &&
+                    task.hasReminder &&
+                    !task.completed &&
+                    task.reminderDate!.isAfter(DateTime.now()),
+              )
+              .toList()
+            ..sort((a, b) => a.reminderDate!.compareTo(b.reminderDate!));
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _clearAll() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear all reminders?'),
+        content: const Text('This removes reminder times from your tasks.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Clear all'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final service = TaskService(userId: widget.userId);
+    final allTasks = await service.loadTasks();
+    for (final task in allTasks) {
+      task.reminderEnabled = false;
+      task.reminderDate = null;
+    }
+    await service.saveTasks(allTasks);
+    await NotificationService.instance.cancelAll();
+    if (!mounted) return;
+    setState(() => _tasks.clear());
+  }
+
+  Future<void> _clearReminder(Task task) async {
+    task.reminderEnabled = false;
+    task.reminderDate = null;
+    await TaskService(userId: widget.userId).updateTask(task);
+    await NotificationService.instance.cancelReminder(task);
+    if (!mounted) return;
+    setState(() => _tasks.removeWhere((item) => item.id == task.id));
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Notifications'),
-      actions: [TextButton(onPressed: () {}, child: const Text('Clear all'))],
-    ),
-    body: ListView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-      children: [
-        Text(
-          'TODAY',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppColors.textFaint,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...items.take(3).map((item) => _NotificationCard(item: item)),
-        const SizedBox(height: 12),
-        Text(
-          'EARLIER',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppColors.textFaint,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _NotificationCard(item: items.last),
+      title: const Text('Reminders'),
+      actions: [
+        if (_tasks.isNotEmpty)
+          TextButton(onPressed: _clearAll, child: const Text('Clear all')),
       ],
     ),
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _tasks.isEmpty
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.notifications_none,
+                    size: 44,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _remindersEnabled
+                        ? 'No upcoming reminders'
+                        : 'Reminders are off',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _remindersEnabled
+                        ? 'Add a reminder to a task and it will appear here.'
+                        : 'Turn on notifications and task reminders in Profile settings.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+          )
+        : ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            itemCount: _tasks.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) => _ReminderCard(
+              task: _tasks[index],
+              onClear: () => _clearReminder(_tasks[index]),
+            ),
+          ),
   );
 }
 
-class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.item});
-  final AppNotification item;
+class _ReminderCard extends StatelessWidget {
+  const _ReminderCard({required this.task, required this.onClear});
+  final Task task;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (item.type) {
-      NotificationType.aiSuggestion => AppColors.accentPurple,
-      NotificationType.taskCompleted => AppColors.primary,
-      NotificationType.streakReminder => AppColors.accentOrange,
-      NotificationType.event => AppColors.textFaint,
-    };
-    final icon = switch (item.type) {
-      NotificationType.aiSuggestion => Icons.auto_awesome,
-      NotificationType.taskCompleted => Icons.check_circle_outline,
-      NotificationType.streakReminder => Icons.local_fire_department_outlined,
-      NotificationType.event => Icons.calendar_month_outlined,
-    };
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: .12),
-          child: Icon(icon, color: color, size: 18),
+          backgroundColor: AppColors.primaryTint,
+          child: const Icon(Icons.alarm_outlined, color: AppColors.primary),
         ),
-        title: Text(
-          item.title,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        subtitle: Text(item.body),
-        trailing: Text(
-          item.type == NotificationType.event ? 'Yesterday' : '2m ago',
-          style: Theme.of(context).textTheme.bodySmall,
+        title: Text(task.title),
+        subtitle: Text('Reminder ${_formatDateTime(task.reminderDate!)}'),
+        trailing: IconButton(
+          onPressed: onClear,
+          tooltip: 'Remove reminder',
+          icon: const Icon(Icons.close),
         ),
       ),
     );
   }
 }
+
+String _formatDateTime(DateTime date) =>
+    '${date.day}/${date.month}/${date.year} · ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';

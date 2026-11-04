@@ -59,12 +59,12 @@ class _LifePilotAppState extends State<LifePilotApp> {
           darkTheme: AppTheme.dark(),
           themeMode: _controller.themeMode,
           home: _showSplash || _controller.isLoading
-    ? const SplashScreen()
-    : !_controller.onboardingCompleted
-        ? const OnboardingScreen()
-        : _controller.user == null
-            ? const LoginScreen()
-            : HomeScreen(userId: _controller.user!.id),
+              ? const SplashScreen()
+              : !_controller.onboardingCompleted
+              ? const OnboardingScreen()
+              : _controller.user == null
+              ? const LoginScreen()
+              : HomeScreen(userId: _controller.user!.id),
         ),
       ),
     );

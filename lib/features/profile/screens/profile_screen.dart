@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../auth/screens/sign_in_screen.dart';
+import '../../notifications/services/notification_service.dart';
+import '../../tasks/services/task_service.dart';
 import '../../../shared_controllers/app_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -10,19 +15,57 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  Future<void> _resetOnboarding() async {
-    final controller = AppController.of(context);
+  Future<void> _setNotifications(AppController controller, bool enabled) async {
+    await controller.setNotificationsEnabled(enabled);
+    await _syncTaskReminders(controller);
+  }
 
-    await controller.resetOnboarding();
+  Future<void> _setReminders(AppController controller, bool enabled) async {
+    await controller.setRemindersEnabled(enabled);
+    await _syncTaskReminders(controller);
+  }
 
-    if (!mounted) return;
+  Future<void> _syncTaskReminders(AppController controller) async {
+    if (!controller.notificationsEnabled || !controller.remindersEnabled) {
+      await NotificationService.instance.cancelAll();
+      return;
+    }
+    final userId = controller.user?.id;
+    if (userId == null) return;
+    final tasks = await TaskService(userId: userId).loadTasks();
+    for (final task in tasks) {
+      if (task.hasReminder && !task.completed) {
+        await NotificationService.instance.scheduleReminder(task);
+      } else {
+        await NotificationService.instance.cancelReminder(task);
+      }
+    }
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Onboarding reset. Restart the app to test.',
-        ),
+  Future<void> _logout(AppController controller) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('You can sign back in with your local account.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Log out'),
+          ),
+        ],
       ),
+    );
+    if (confirmed != true) return;
+    await controller.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+      (_) => false,
     );
   }
 
@@ -32,9 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = controller.user;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
-      ),
+      appBar: AppBar(title: const Text('My Profile')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -46,29 +87,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 const CircleAvatar(
                   radius: 50,
-                  child: Icon(
-                    Icons.person,
-                    size: 50,
-                  ),
+                  child: Icon(Icons.person, size: 50),
                 ),
 
                 const SizedBox(height: 16),
 
                 Text(
                   user?.name ?? 'User',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
 
                 const SizedBox(height: 4),
 
                 Text(
                   user?.email ?? 'user@email.com',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -80,12 +114,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // -----------------------------------------
           // Personal Information
           // -----------------------------------------
-          const Text(
+          Text(
             'Personal Information',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.titleMedium,
           ),
 
           const SizedBox(height: 8),
@@ -93,17 +124,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('Name'),
-            subtitle: Text(
-              user?.name ?? 'Not available',
-            ),
+            subtitle: Text(user?.name ?? 'Not available'),
           ),
 
           ListTile(
             leading: const Icon(Icons.email_outlined),
             title: const Text('Email'),
-            subtitle: Text(
-              user?.email ?? 'Not available',
-            ),
+            subtitle: Text(user?.email ?? 'Not available'),
           ),
 
           const Divider(height: 32),
@@ -111,49 +138,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // -----------------------------------------
           // Preferences
           // -----------------------------------------
-          const Text(
-            'Preferences',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Preferences', style: Theme.of(context).textTheme.titleMedium),
 
           const SizedBox(height: 8),
 
           ListTile(
             leading: const Icon(Icons.dark_mode_outlined),
             title: const Text('Theme'),
-            subtitle: Text(
-              _themeLabel(controller.themeMode),
-            ),
+            subtitle: Text(_themeLabel(controller.themeMode)),
             onTap: () {
               _showThemeOptions(context, controller);
             },
           ),
 
-          const Divider(height: 32),
-
-          // -----------------------------------------
-          // Development / Testing
-          // -----------------------------------------
-          const Text(
-            'Development',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+          SwitchListTile(
+            secondary: const Icon(Icons.notifications_outlined),
+            title: const Text('Notifications'),
+            subtitle: const Text('Allow LifePilot to send notifications'),
+            value: controller.notificationsEnabled,
+            onChanged: (value) => _setNotifications(controller, value),
           ),
 
-          const SizedBox(height: 8),
+          SwitchListTile(
+            secondary: const Icon(Icons.alarm_outlined),
+            title: const Text('Task reminders'),
+            subtitle: const Text('Schedule alerts for tasks with reminders'),
+            value: controller.remindersEnabled,
+            onChanged: controller.notificationsEnabled
+                ? (value) => _setReminders(controller, value)
+                : null,
+          ),
+
+          const Divider(height: 32),
 
           ListTile(
-            leading: const Icon(Icons.restart_alt),
-            title: const Text('Reset Onboarding'),
-            subtitle: const Text(
-              'Development testing only',
-            ),
-            onTap: _resetOnboarding,
+            leading: const Icon(Icons.logout),
+            title: const Text('Log out'),
+            onTap: () => _logout(controller),
           ),
         ],
       ),
@@ -171,10 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showThemeOptions(
-    BuildContext context,
-    AppController controller,
-  ) {
+  void _showThemeOptions(BuildContext context, AppController controller) {
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -186,10 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: EdgeInsets.all(16),
                 child: Text(
                   'Choose Theme',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
 
@@ -198,7 +213,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onChanged: (ThemeMode? value) {
                   if (value == null) return;
 
-                  controller.setThemeMode(value);
+                  unawaited(controller.setThemeMode(value));
                   Navigator.pop(context);
                 },
                 child: const Column(

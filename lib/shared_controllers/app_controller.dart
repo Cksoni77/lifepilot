@@ -3,13 +3,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../features/auth/models/user.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/profile/models/user_preferences.dart';
+import '../features/profile/services/user_service.dart';
 
 class AppController extends ChangeNotifier {
   final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
 
   User? user;
 
   ThemeMode themeMode = ThemeMode.system;
+  bool notificationsEnabled = true;
+  bool remindersEnabled = true;
 
   bool isLoading = true;
 
@@ -23,10 +28,17 @@ class AppController extends ChangeNotifier {
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
+    final preferences = await _userService.loadPreferences();
+    themeMode = switch (preferences.theme) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
+    notificationsEnabled = preferences.notificationsEnabled;
+    remindersEnabled = preferences.reminderEnabled;
 
     // Check whether onboarding has been completed.
-    _onboardingCompleted =
-        prefs.getBool('onboardingCompleted') ?? false;
+    _onboardingCompleted = prefs.getBool('onboardingCompleted') ?? false;
 
     // Load existing user.
     user = await _authService.currentUser();
@@ -60,19 +72,42 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setThemeMode(ThemeMode value) {
+  Future<void> setThemeMode(ThemeMode value) async {
     themeMode = value;
     notifyListeners();
+    await _savePreferences();
+  }
+
+  Future<void> setNotificationsEnabled(bool value) async {
+    notificationsEnabled = value;
+    notifyListeners();
+    await _savePreferences();
+  }
+
+  Future<void> setRemindersEnabled(bool value) async {
+    remindersEnabled = value;
+    notifyListeners();
+    await _savePreferences();
+  }
+
+  Future<void> _savePreferences() => _userService.savePreferences(
+    UserPreferences(
+      theme: themeMode.name,
+      notificationsEnabled: notificationsEnabled,
+      reminderEnabled: remindersEnabled,
+    ),
+  );
+
+  Future<void> logout() async {
+    await _authService.logout();
+    refreshUser(null);
   }
 
   static AppController of(BuildContext context) {
     final scope = context
         .dependOnInheritedWidgetOfExactType<AppControllerScope>();
 
-    assert(
-      scope != null,
-      'AppControllerScope is missing above this context.',
-    );
+    assert(scope != null, 'AppControllerScope is missing above this context.');
 
     return scope!.notifier!;
   }

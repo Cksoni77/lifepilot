@@ -1,21 +1,8 @@
-enum TaskPriority {
-  low,
-  medium,
-  high,
-}
+enum TaskPriority { low, medium, high }
 
-enum TaskStatus {
-  none,
-  overdue,
-  dueToday,
-}
+enum TaskStatus { none, overdue, dueToday }
 
-enum TaskCategory {
-  personal,
-  work,
-  health,
-  finance,
-}
+enum TaskCategory { personal, work, health, finance }
 
 extension TaskPriorityDetails on TaskPriority {
   String get label {
@@ -99,16 +86,22 @@ class Task {
   }
 
   String get statusLabel {
-    switch (status()) {
-      case TaskStatus.overdue:
-        return 'Overdue';
-
-      case TaskStatus.dueToday:
-        return 'Due Today';
-
-      case TaskStatus.none:
-        return '';
+    if (completed || dueDate == null) {
+      return '';
     }
+
+    final today = _dateOnly(DateTime.now());
+    final due = _dateOnly(dueDate!);
+
+    if (due.isBefore(today)) {
+      return 'Overdue';
+    }
+
+    if (due == today) {
+      return 'Due Today';
+    }
+
+    return '';
   }
 
   bool get isOverdue {
@@ -198,32 +191,21 @@ class Task {
           ? null
           : DateTime.tryParse(json['reminderDate'] as String),
 
-      reminderEnabled:
-          json['reminderEnabled'] as bool? ?? false,
+      reminderEnabled: json['reminderEnabled'] as bool? ?? false,
 
-      estimatedMinutes:
-          (json['estimatedMinutes'] as num?)?.toInt(),
+      estimatedMinutes: (json['estimatedMinutes'] as num?)?.toInt(),
 
       createdAt: json['createdAt'] == null
           ? DateTime.now()
-          : DateTime.tryParse(
-                json['createdAt'] as String,
-              ) ??
-              DateTime.now(),
+          : DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now(),
 
       completedAt: json['completedAt'] == null
           ? null
-          : DateTime.tryParse(
-              json['completedAt'] as String,
-            ),
+          : DateTime.tryParse(json['completedAt'] as String),
     );
   }
 }
 
 DateTime _dateOnly(DateTime date) {
-  return DateTime(
-    date.year,
-    date.month,
-    date.day,
-  );
+  return DateTime(date.year, date.month, date.day);
 }

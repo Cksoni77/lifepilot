@@ -4,12 +4,10 @@ import '../../../core/theme/app_colors.dart';
 import '../models/task.dart';
 
 class AddTaskSheet extends StatefulWidget {
-  const AddTaskSheet({
-    required this.onCreate,
-    super.key,
-  });
+  const AddTaskSheet({required this.onCreate, this.task, super.key});
 
-  final ValueChanged<Task> onCreate;
+  final Future<void> Function(Task) onCreate;
+  final Task? task;
 
   @override
   State<AddTaskSheet> createState() => _AddTaskSheetState();
@@ -26,6 +24,22 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   DateTime? _dueDate;
   DateTime? _reminderDate;
   bool _reminderEnabled = false;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final task = widget.task;
+    if (task == null) return;
+    _titleController.text = task.title;
+    _descriptionController.text = task.description;
+    _estimatedMinutesController.text = task.estimatedMinutes?.toString() ?? '';
+    _priority = task.priority;
+    _category = task.category;
+    _dueDate = task.dueDate;
+    _reminderDate = task.reminderDate;
+    _reminderEnabled = task.reminderEnabled;
+  }
 
   @override
   void dispose() {
@@ -92,41 +106,64 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     });
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_isSaving) return;
     final title = _titleController.text.trim();
 
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a task title'),
-        ),
+        const SnackBar(content: Text('Please enter a task title')),
       );
       return;
     }
 
-    final estimatedText =
-        _estimatedMinutesController.text.trim();
+    final estimatedText = _estimatedMinutesController.text.trim();
 
-    final estimatedMinutes =
-        int.tryParse(estimatedText);
+    final estimatedMinutes = int.tryParse(estimatedText);
+    if (estimatedText.isNotEmpty &&
+        (estimatedMinutes == null || estimatedMinutes <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter an estimate greater than zero')),
+      );
+      return;
+    }
+    if (_reminderEnabled &&
+        _reminderDate != null &&
+        !_reminderDate!.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose a reminder time in the future')),
+      );
+      return;
+    }
 
     final task = Task(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: widget.task?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
       title: title,
       description: _descriptionController.text.trim(),
       category: _category,
       priority: _priority,
       dueDate: _dueDate,
-      reminderDate:
-          _reminderEnabled ? _reminderDate : null,
-      reminderEnabled: _reminderEnabled &&
-          _reminderDate != null,
+      reminderDate: _reminderEnabled ? _reminderDate : null,
+      reminderEnabled: _reminderEnabled && _reminderDate != null,
       estimatedMinutes: estimatedMinutes,
+      completed: widget.task?.completed ?? false,
+      createdAt: widget.task?.createdAt,
+      completedAt: widget.task?.completedAt,
     );
 
-    widget.onCreate(task);
-
-    Navigator.pop(context);
+    setState(() => _isSaving = true);
+    try {
+      await widget.onCreate(task);
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save this task. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -150,8 +187,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   height: 4,
                   decoration: BoxDecoration(
                     color: AppColors.border,
-                    borderRadius:
-                        BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
@@ -159,9 +195,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               const SizedBox(height: 18),
 
               Text(
-                'New task',
-                style:
-                    Theme.of(context).textTheme.titleLarge,
+                widget.task == null ? 'New task' : 'Edit task',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
 
               const SizedBox(height: 14),
@@ -172,9 +207,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 autofocus: true,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
+                  labelText: 'Task title',
                   hintText: 'Task title',
-                  prefixIcon:
-                      Icon(Icons.edit_outlined),
+                  prefixIcon: Icon(Icons.edit_outlined),
                 ),
               ),
 
@@ -185,9 +220,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 controller: _descriptionController,
                 maxLines: 2,
                 decoration: const InputDecoration(
+                  labelText: 'Description (optional)',
                   hintText: 'Description (optional)',
-                  prefixIcon:
-                      Icon(Icons.notes_outlined),
+                  prefixIcon: Icon(Icons.notes_outlined),
                 ),
               ),
 
@@ -195,29 +230,20 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
               // CATEGORY
               InkWell(
-                borderRadius:
-                    BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10),
                 onTap: _chooseCategory,
                 child: InputDecorator(
-                  decoration:
-                      const InputDecoration(
-                    prefixIcon:
-                        Icon(Icons.category_outlined),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.category_outlined),
                   ),
                   child: Row(
                     children: [
                       Text(
                         _category.label,
-                        style: const TextStyle(
-                          fontWeight:
-                              FontWeight.w700,
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       const Spacer(),
-                      const Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                      ),
+                      const Icon(Icons.chevron_right, size: 20),
                     ],
                   ),
                 ),
@@ -227,53 +253,39 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
               // PRIORITY
               Row(
-                children: TaskPriority.values
-                    .map(
-                      (priority) {
-                    final selected =
-                        _priority == priority;
+                children: TaskPriority.values.map((priority) {
+                  final selected = _priority == priority;
 
-                    return Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          right:
-                              priority ==
-                                      TaskPriority.high
-                                  ? 0
-                                  : 8,
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: priority == TaskPriority.high ? 0 : 8,
+                      ),
+                      child: ChoiceChip(
+                        label: Text(priority.label),
+                        selected: selected,
+                        showCheckmark: false,
+                        onSelected: (_) {
+                          setState(() {
+                            _priority = priority;
+                          });
+                        },
+                        selectedColor: AppColors.primary,
+                        labelStyle: TextStyle(
+                          color: selected
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w700,
                         ),
-                        child: ChoiceChip(
-                          label:
-                              Text(priority.label),
-                          selected: selected,
-                          showCheckmark: false,
-                          onSelected: (_) {
-                            setState(() {
-                              _priority =
-                                  priority;
-                            });
-                          },
-                          selectedColor:
-                              AppColors.primary,
-                          labelStyle: TextStyle(
-                            color: selected
-                                ? Colors.white
-                                : AppColors
-                                    .textPrimary,
-                            fontWeight:
-                                FontWeight.w700,
-                          ),
-                          side: BorderSide(
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.border,
-                          ),
+                        side: BorderSide(
+                          color: selected
+                              ? AppColors.primary
+                              : Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
-                    );
-                  },
-                )
-                    .toList(),
+                    ),
+                  );
+                }).toList(),
               ),
 
               const SizedBox(height: 12),
@@ -281,9 +293,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               // DUE DATE
               OutlinedButton.icon(
                 onPressed: _chooseDueDate,
-                icon: const Icon(
-                  Icons.calendar_today_outlined,
-                ),
+                icon: const Icon(Icons.calendar_today_outlined),
                 label: Text(
                   _dueDate == null
                       ? 'Set due date'
@@ -296,9 +306,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               // REMINDER
               OutlinedButton.icon(
                 onPressed: _chooseReminder,
-                icon: const Icon(
-                  Icons.notifications_outlined,
-                ),
+                icon: const Icon(Icons.notifications_outlined),
                 label: Text(
                   _reminderDate == null
                       ? 'Set reminder'
@@ -308,18 +316,15 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
               if (_reminderEnabled)
                 Align(
-                  alignment:
-                      Alignment.centerRight,
+                  alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
                       setState(() {
-                        _reminderEnabled =
-                            false;
+                        _reminderEnabled = false;
                         _reminderDate = null;
                       });
                     },
-                    child:
-                        const Text('Remove reminder'),
+                    child: const Text('Remove reminder'),
                   ),
                 ),
 
@@ -327,16 +332,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
               // ESTIMATED TIME
               TextField(
-                controller:
-                    _estimatedMinutesController,
-                keyboardType:
-                    TextInputType.number,
-                decoration:
-                    const InputDecoration(
-                  hintText:
-                      'Estimated time in minutes',
-                  prefixIcon:
-                      Icon(Icons.timer_outlined),
+                controller: _estimatedMinutesController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  hintText: 'Estimated time in minutes',
+                  prefixIcon: Icon(Icons.timer_outlined),
                 ),
               ),
 
@@ -346,12 +346,10 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed:
-                          () => Navigator.pop(
-                            context,
-                          ),
-                      child:
-                          const Text('Cancel'),
+                      onPressed: _isSaving
+                          ? null
+                          : () => Navigator.pop(context),
+                      child: const Text('Cancel'),
                     ),
                   ),
 
@@ -359,11 +357,20 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: _submit,
-                      icon:
-                          const Icon(Icons.add),
-                      label:
-                          const Text('Add task'),
+                      onPressed: _isSaving ? null : _submit,
+                      icon: _isSaving
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.add),
+                      label: Text(
+                        _isSaving
+                            ? 'Saving'
+                            : widget.task == null
+                            ? 'Add task'
+                            : 'Save',
+                      ),
                     ),
                   ),
                 ],
@@ -376,37 +383,22 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 
   Future<void> _chooseCategory() async {
-    final category =
-        await showModalBottomSheet<TaskCategory>(
+    final category = await showModalBottomSheet<TaskCategory>(
       context: context,
       builder: (context) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: TaskCategory.values.map(
-              (category) {
-                return ListTile(
-                  leading: Icon(
-                    _categoryIcon(category),
-                  ),
-                  title:
-                      Text(category.label),
-                  trailing:
-                      category == _category
-                          ? const Icon(
-                              Icons.check,
-                              color:
-                                  AppColors.primary,
-                            )
-                          : null,
-                  onTap: () =>
-                      Navigator.pop(
-                    context,
-                    category,
-                  ),
-                );
-              },
-            ).toList(),
+            children: TaskCategory.values.map((category) {
+              return ListTile(
+                leading: Icon(_categoryIcon(category)),
+                title: Text(category.label),
+                trailing: category == _category
+                    ? const Icon(Icons.check, color: AppColors.primary)
+                    : null,
+                onTap: () => Navigator.pop(context, category),
+              );
+            }).toList(),
           ),
         );
       },
@@ -437,13 +429,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 
   String _formatDateTime(DateTime date) {
-    final hour = date.hour
-        .toString()
-        .padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
 
-    final minute = date.minute
-        .toString()
-        .padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
 
     return '${date.day}/${date.month} $hour:$minute';
   }

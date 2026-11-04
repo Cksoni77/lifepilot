@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/habit.dart';
 import '../services/habit_service.dart';
+import 'habit_form_sheet.dart';
 
 class HabitScreen extends StatefulWidget {
   const HabitScreen({required this.userId, super.key});
@@ -13,35 +14,135 @@ class HabitScreen extends StatefulWidget {
 }
 
 class _HabitScreenState extends State<HabitScreen> {
-  final habits = <Habit>[
-    Habit(id: 'exercise', name: 'Exercise'),
-    Habit(id: 'water', name: 'Drink water'),
-    Habit(id: 'read', name: 'Read 20 min'),
-  ];
-  final completed = <String>{'exercise', 'water'};
+  final habits = <Habit>[];
+  late final HabitService _habitService;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _habitService = HabitService(userId: widget.userId);
+    _loadHabits();
+  }
+
+  Future<void> _loadHabits() async {
+    final loaded = await _habitService.loadHabits();
+    if (!mounted) return;
+    setState(() {
+      habits
+        ..clear()
+        ..addAll(loaded);
+      _isLoading = false;
+    });
+  }
 
   Future<void> _addHabit() async {
-    final name = await showDialog<String>(
+    Habit? savedHabit;
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (_) => const _AddHabitDialog(),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => HabitFormSheet(
+        onSave: (habit) async {
+          await _habitService.addHabit(habit);
+          savedHabit = habit;
+          if (mounted) setState(() => habits.add(habit));
+        },
+      ),
     );
-    if (!mounted || name == null) {
-      return;
-    }
-    final habit = Habit(id: DateTime.now().toIso8601String(), name: name);
-    setState(() => habits.add(habit));
-    await HabitService(userId: widget.userId).saveHabits(habits);
-    if (mounted) {
+    if (mounted && savedHabit != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [Text(name), Text('$name added to your habits.')],
-          ),
-        ),
+        SnackBar(content: Text('${savedHabit!.name} added to your habits.')),
       );
     }
+  }
+
+  Future<void> _toggleToday(Habit habit) async {
+    final today = _dateOnly(DateTime.now());
+    final isDone = habit.completedDates.any((date) => _sameDay(date, today));
+    bool changed;
+    try {
+      changed = isDone
+          ? await _habitService.undoCompletion(habit.id, today)
+          : await _habitService.markCompleted(habit.id, today);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update this habit.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (!changed && !isDone) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This habit is not scheduled for today.')),
+      );
+      return;
+    }
+    await _loadHabits();
+  }
+
+  Future<void> _editHabit(Habit habit) async {
+    Habit? updatedHabit;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => HabitFormSheet(
+        habit: habit,
+        onSave: (updated) async {
+          await _habitService.updateHabit(updated);
+          updatedHabit = updated;
+          if (!mounted) return;
+          final index = habits.indexWhere((item) => item.id == updated.id);
+          if (index >= 0) setState(() => habits[index] = updated);
+        },
+      ),
+    );
+    if (mounted && updatedHabit != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${updatedHabit!.name} updated.')));
+    }
+  }
+
+  Future<void> _deleteHabit(Habit habit) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete habit?'),
+        content: Text(
+          '"${habit.name}" and its completion history will be removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _habitService.deleteHabit(habit.id);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not delete this habit.')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() => habits.removeWhere((item) => item.id == habit.id));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${habit.name} deleted.')));
   }
 
   @override
@@ -52,14 +153,29 @@ class _HabitScreenState extends State<HabitScreen> {
       children: [
         Text(
           'Build consistency one day at a time.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 16),
-        const _HabitStats(),
+        _HabitStats(habits: habits),
         const SizedBox(height: 16),
-        ...habits.map(_habitCard),
+        if (_isLoading)
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (habits.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                'No habits yet. Add one to start tracking your consistency.',
+              ),
+            ),
+          )
+        else
+          ...habits.map(_habitCard),
       ],
     ),
     floatingActionButton: FloatingActionButton.extended(
@@ -70,7 +186,20 @@ class _HabitScreenState extends State<HabitScreen> {
   );
 
   Widget _habitCard(Habit habit) {
-    final isDone = completed.contains(habit.id);
+    final today = _dateOnly(DateTime.now());
+    final isDone = habit.completedDates.any((date) => _sameDay(date, today));
+    final canComplete =
+        isDone ||
+        (!today.isBefore(habit.startDate) && habit.isScheduledOn(today));
+    final weekDates = List.generate(
+      7,
+      (index) => today.subtract(Duration(days: 6 - index)),
+    );
+    final weekCount = weekDates
+        .where(
+          (date) => habit.completedDates.any((done) => _sameDay(done, date)),
+        )
+        .length;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -79,17 +208,9 @@ class _HabitScreenState extends State<HabitScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  habit.id == 'water'
-                      ? Icons.water_drop_outlined
-                      : habit.id == 'read'
-                      ? Icons.book_outlined
-                      : Icons.local_fire_department_outlined,
-                  color: habit.id == 'read'
-                      ? AppColors.accentPurple
-                      : habit.id == 'water'
-                      ? AppColors.primary
-                      : AppColors.accentOrange,
+                const Icon(
+                  Icons.track_changes_outlined,
+                  color: AppColors.primary,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -98,38 +219,70 @@ class _HabitScreenState extends State<HabitScreen> {
                     children: [
                       Text(
                         habit.name,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text(
-                        habit.id == 'water'
-                            ? '8 glasses a day'
-                            : habit.id == 'read'
-                            ? 'Before bed'
-                            : 'Every day',
+                        _frequencySummary(habit),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
                 ),
+                PopupMenuButton<String>(
+                  tooltip: 'Habit actions',
+                  onSelected: (action) {
+                    if (action == 'edit') _editHabit(habit);
+                    if (action == 'delete') _deleteHabit(habit);
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
                 IconButton(
-                  onPressed: () => setState(
-                    () => isDone
-                        ? completed.remove(habit.id)
-                        : completed.add(habit.id),
+                  onPressed: canComplete ? () => _toggleToday(habit) : null,
+                  icon: Icon(
+                    isDone ? Icons.check_circle : Icons.circle_outlined,
                   ),
-                  icon: Icon(isDone ? Icons.check : Icons.circle_outlined),
-                  tooltip: isDone ? 'Mark incomplete' : 'Mark complete',
+                  tooltip: isDone
+                      ? 'Mark incomplete'
+                      : canComplete
+                      ? 'Mark complete'
+                      : 'Not scheduled today',
                 ),
               ],
+            ),
+            if (habit.description.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  habit.description,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                [
+                  habit.category.label,
+                  if (habit.targetDuration != null)
+                    '${_displayDuration(habit.targetDuration!)} ${habit.durationUnit.label.toLowerCase()}',
+                ].join(' · '),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                Text(
-                  'Daily · Current ${isDone ? 3 : 0}d · Best 5d',
-                  style: Theme.of(context).textTheme.bodySmall,
+                Expanded(
+                  child: Text(
+                    'Current ${habit.currentStreak()}d · Best ${habit.longestStreak()}d',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
-                const Spacer(),
                 Text(
                   isDone ? 'On track' : 'To do',
                   style: Theme.of(
@@ -140,10 +293,35 @@ class _HabitScreenState extends State<HabitScreen> {
             ),
             const SizedBox(height: 6),
             LinearProgressIndicator(
-              value: isDone ? .67 : .05,
+              value: weekCount / 7,
               color: AppColors.primary,
               minHeight: 6,
               borderRadius: BorderRadius.circular(6),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                for (final date in weekDates)
+                  CircleAvatar(
+                    radius: 11,
+                    backgroundColor:
+                        habit.completedDates.any((done) => _sameDay(done, date))
+                        ? AppColors.primary
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: Text(
+                      ['M', 'T', 'W', 'T', 'F', 'S', 'S'][date.weekday - 1],
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color:
+                            habit.completedDates.any(
+                              (done) => _sameDay(done, date),
+                            )
+                            ? Colors.white
+                            : null,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -153,49 +331,76 @@ class _HabitScreenState extends State<HabitScreen> {
 }
 
 class _HabitStats extends StatelessWidget {
-  const _HabitStats();
+  const _HabitStats({required this.habits});
+
+  final List<Habit> habits;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Habit statistics',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 12),
-          const Row(
-            children: [
-              Expanded(
-                child: _Stat(label: 'Total habits', value: '3'),
-              ),
-              Expanded(
-                child: _Stat(label: 'Completed today', value: '2/3'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Row(
-            children: [
-              Expanded(
-                child: _Stat(
-                  label: 'Completion rate',
-                  value: '67%',
-                  color: AppColors.primary,
+  Widget build(BuildContext context) {
+    final today = _dateOnly(DateTime.now());
+    final completedToday = habits
+        .where(
+          (habit) => habit.completedDates.any((date) => _sameDay(date, today)),
+        )
+        .length;
+    final bestActiveStreak = habits.fold<int>(
+      0,
+      (longest, habit) =>
+          habit.currentStreak() > longest ? habit.currentStreak() : longest,
+    );
+    final completionRate = habits.isEmpty
+        ? 0.0
+        : completedToday / habits.length;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Habit statistics',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _Stat(
+                    label: 'Total habits',
+                    value: '${habits.length}',
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _Stat(label: 'Current streak', value: '🔥 3 days'),
-              ),
-            ],
-          ),
-        ],
+                Expanded(
+                  child: _Stat(
+                    label: 'Completed today',
+                    value: '$completedToday/${habits.length}',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _Stat(
+                    label: 'Completion rate',
+                    value: '${(completionRate * 100).round()}%',
+                    color: AppColors.primary,
+                  ),
+                ),
+                Expanded(
+                  child: _Stat(
+                    label: 'Best active streak',
+                    value: '$bestActiveStreak days',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _Stat extends StatelessWidget {
@@ -216,48 +421,21 @@ class _Stat extends StatelessWidget {
   );
 }
 
-class _AddHabitDialog extends StatefulWidget {
-  const _AddHabitDialog();
-  @override
-  State<_AddHabitDialog> createState() => _AddHabitDialogState();
-}
-
-class _AddHabitDialogState extends State<_AddHabitDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _controller = TextEditingController();
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+String _frequencySummary(Habit habit) {
+  if (habit.frequency != HabitFrequency.customDays) {
+    return habit.frequency.label;
   }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Add habit'),
-    content: Form(
-      key: _formKey,
-      child: TextFormField(
-        controller: _controller,
-        autofocus: true,
-        decoration: const InputDecoration(hintText: 'Habit name'),
-        validator: (value) => value == null || value.trim().isEmpty
-            ? 'Give your habit a name'
-            : null,
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            Navigator.pop(context, _controller.text.trim());
-          }
-        },
-        child: const Text('Create habit'),
-      ),
-    ],
-  );
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return habit.selectedWeekdays.map((day) => weekdays[day - 1]).join(', ');
 }
+
+String _displayDuration(double duration) => duration == duration.roundToDouble()
+    ? duration.toInt().toString()
+    : '$duration';
+
+DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+
+bool _sameDay(DateTime first, DateTime second) =>
+    first.year == second.year &&
+    first.month == second.month &&
+    first.day == second.day;
