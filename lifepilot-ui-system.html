@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LifePilot — Complete UI System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#0E9384;
+    --primary-dark:#0A6F63;
+    --primary-tint:#E4F5F2;
+    --primary-tint2:#EFF9F6;
+    --accent-orange:#F97316;
+    --accent-orange-tint:#FFF1E6;
+    --accent-purple:#7C6AE8;
+    --accent-purple-tint:#EFECFC;
+    --danger:#E5484D;
+    --warning:#F5A524;
+    --bg:#F6FAF9;
+    --surface:#FFFFFF;
+    --text:#152622;
+    --text-soft:#5B6C68;
+    --text-faint:#94A29E;
+    --border:#E3EDEA;
+    --radius-lg:24px;
+    --radius-md:16px;
+    --radius-sm:10px;
+    --shadow:0 10px 30px -12px rgba(14,60,52,0.18);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:#0B1E1A;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    padding:48px 32px;
+  }
+  .intro{max-width:1200px; margin:0 auto 40px; color:#EAF3F1;}
+  .intro h1{font-family:'Manrope',sans-serif; font-weight:800; font-size:28px; letter-spacing:-0.02em; margin-bottom:8px;}
+  .intro p{color:#9FB6B1; font-size:14px; max-width:640px; line-height:1.6;}
+  .section-label{
+    font-family:'Manrope',sans-serif; font-weight:700; font-size:13px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--primary); margin:44px auto 16px; max-width:1200px;
+  }
+  .gallery{
+    display:flex; flex-wrap:wrap; gap:28px; max-width:1200px; margin:0 auto;
+  }
+  .phone-wrap{display:flex; flex-direction:column; align-items:center; gap:10px;}
+  .phone-label{font-family:'Manrope',sans-serif; font-size:12.5px; font-weight:700; color:#CFE3DF;}
+  .phone{
+    width:300px; height:650px; background:var(--bg); border-radius:44px;
+    border:8px solid #10221D; box-shadow:var(--shadow); overflow:hidden; position:relative;
+    display:flex; flex-direction:column;
+  }
+  .notch{
+    position:absolute; top:8px; left:50%; transform:translateX(-50%); width:90px; height:22px;
+    background:#10221D; border-radius:14px; z-index:50;
+  }
+  .statusbar{
+    height:40px; display:flex; align-items:flex-end; justify-content:space-between;
+    padding:0 22px 6px; font-size:12px; font-weight:700; color:var(--text); flex-shrink:0;
+  }
+  .screen-body{flex:1; overflow:hidden; position:relative;}
+  .scroll{height:100%; overflow-y:auto; padding:0 18px 18px;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  /* ---------- shared UI atoms ---------- */
+  .icon{display:inline-flex; align-items:center; justify-content:center;}
+  .icon svg{display:block;}
+  .top-header{display:flex; align-items:center; justify-content:space-between; padding:14px 2px 10px;}
+  .brand{display:flex; align-items:center; gap:8px;}
+  .brand-mark{
+    width:30px; height:30px; border-radius:50%; background:var(--primary-tint);
+    display:flex; align-items:center; justify-content:center; color:var(--primary);
+  }
+  .brand-name{font-family:'Manrope',sans-serif; font-weight:800; font-size:17px; letter-spacing:-0.01em;}
+  .header-actions{display:flex; align-items:center; gap:10px;}
+  .icon-btn{
+    width:36px; height:36px; border-radius:50%; background:var(--surface); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; color:var(--text); position:relative; flex-shrink:0;
+  }
+  .dot-badge{
+    position:absolute; top:6px; right:7px; width:7px; height:7px; border-radius:50%;
+    background:var(--danger); border:1.5px solid var(--surface);
+  }
+  .avatar{
+    width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,var(--primary),#12B3A0);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Manrope',sans-serif; font-weight:700; font-size:14px;
+  }
+  h1.page-title{font-family:'Manrope',sans-serif; font-weight:800; font-size:22px; letter-spacing:-0.01em; margin:4px 0 14px;}
+  .greeting{font-size:13px; color:var(--text-soft); font-weight:500;}
+  .card{
+    background:var(--surface); border-radius:var(--radius-md); padding:16px; border:1px solid var(--border);
+  }
+  .section-row{display:flex; align-items:center; justify-content:space-between; margin:20px 0 10px;}
+  .section-row h2{font-family:'Manrope',sans-serif; font-weight:700; font-size:15.5px;}
+  .link-sm{font-size:12.5px; color:var(--primary); font-weight:700;}
+  .btn-primary{
+    background:var(--primary); color:#fff; border:none; border-radius:var(--radius-sm);
+    padding:14px; font-family:'Manrope',sans-serif; font-weight:700; font-size:14.5px; width:100%;
+    display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 8px 18px -8px rgba(14,147,132,0.55);
+  }
+  .btn-secondary{
+    background:var(--surface); color:var(--text); border:1.5px solid var(--border); border-radius:var(--radius-sm);
+    padding:13px; font-family:'Manrope',sans-serif; font-weight:700; font-size:14px; width:100%;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .input{
+    background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius-sm);
+    padding:13px 14px; display:flex; align-items:center; gap:10px; margin-bottom:12px;
+  }
+  .input input{border:none; outline:none; background:transparent; font-size:14px; width:100%; font-family:'Inter',sans-serif; color:var(--text);}
+  .input svg{color:var(--text-faint); flex-shrink:0;}
+  .chip{
+    padding:7px 13px; border-radius:20px; font-size:12.5px; font-weight:700; border:1.5px solid var(--border);
+    background:var(--surface); color:var(--text-soft); white-space:nowrap;
+  }
+  .chip.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .badge{padding:3px 9px; border-radius:20px; font-size:10.5px; font-weight:800; letter-spacing:0.02em;}
+  .badge.high{background:#FDE8E8; color:var(--danger);}
+  .badge.med{background:#FFF3DC; color:#B8790A;}
+  .badge.low{background:#E4F5F2; color:var(--primary-dark);}
+
+  /* bottom nav */
+  .bottomnav{
+    position:absolute; bottom:0; left:0; right:0; height:72px; background:var(--surface);
+    border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-around; padding-bottom:6px;
+  }
+  .nav-item{display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--text-faint); font-size:10px; font-weight:700;}
+  .nav-item.active{color:var(--primary);}
+  .nav-fab{
+    width:52px; height:52px; border-radius:50%; background:linear-gradient(135deg,var(--primary),#12B3A0);
+    display:flex; align-items:center; justify-content:center; color:#fff; margin-top:-30px;
+    box-shadow:0 10px 20px -6px rgba(14,147,132,0.6); border:4px solid var(--surface);
+  }
+  .fab-round{
+    position:absolute; right:16px; bottom:88px; width:52px; height:52px; border-radius:50%;
+    background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 20px -6px rgba(14,147,132,0.6);
+  }
+
+  /* progress ring */
+  .ring-wrap{position:relative; width:74px; height:74px; flex-shrink:0;}
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-center{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Manrope',sans-serif; font-weight:800; font-size:14px;}
+
+  /* misc */
+  .divider{height:1px; background:var(--border); margin:14px 0;}
+  .rowline{display:flex; align-items:center; justify-content:space-between; padding:13px 0;}
+  .rowline .left{display:flex; align-items:center; gap:12px;}
+  .rowline .icon-tile{width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .toggle{width:38px; height:22px; border-radius:20px; position:relative; flex-shrink:0;}
+  .toggle.on{background:var(--primary);}
+  .toggle.off{background:#DDE7E4;}
+  .toggle .knob{position:absolute; top:2px; width:18px; height:18px; border-radius:50%; background:#fff;}
+  .toggle.on .knob{right:2px;}
+  .toggle.off .knob{left:2px;}
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>LifePilot — Full Screen System</h1>
+  <p>Extends your existing teal/mint LifePilot UI into a complete, consistent flow — onboarding through daily use — with a unified icon set, component library, and a signature "Balance Ring" motif tying the AI insight, habit and dashboard screens together.</p>
+</div>
+
+<div class="section-label">01 · Onboarding &amp; Auth</div>
+<div class="gallery" id="gallery-auth"></div>
+
+<div class="section-label">02 · Daily Use — Core</div>
+<div class="gallery" id="gallery-core"></div>
+
+<div class="section-label">03 · Daily Use — Depth &amp; AI</div>
+<div class="gallery" id="gallery-depth"></div>
+
+<div class="section-label">04 · Account</div>
+<div class="gallery" id="gallery-account"></div>
+
+<script>
+const I = {
+  home:`<path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"/>`,
+  calendar:`<rect x="4" y="5.5" width="16" height="15" rx="2.5"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/>`,
+  habit:`<path d="M12 3s5 4.2 5 9.2A5 5 0 0 1 7 12.2C7 9.6 8.7 7.6 9.5 6.3c.3.9.9 1.8 1.6 2.2C11.4 6.8 11.7 4.6 12 3Z"/>`,
+  ai:`<path d="M12 3.5 13.7 9l5.3 1.5-5.3 1.5L12 17.5 10.3 12 5 10.5 10.3 9 12 3.5Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/>`,
+  user:`<circle cx="12" cy="8.5" r="3.5"/><path d="M4.5 20c1.5-4 4-5.5 7.5-5.5s6 1.5 7.5 5.5"/>`,
+  bell:`<path d="M6 10.5a6 6 0 0 1 12 0c0 4 1.5 5 1.5 5h-15s1.5-1 1.5-5Z"/><path d="M10 18.5a2 2 0 0 0 4 0"/>`,
+  plus:`<path d="M12 5v14M5 12h14"/>`,
+  back:`<path d="M15 5 8 12l7 7"/>`,
+  check:`<path d="M5 12.5 10 17l9-10"/>`,
+  checkCircle:`<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.3 11 14.8l4.5-5.6"/>`,
+  circleEmpty:`<circle cx="12" cy="12" r="8.5"/>`,
+  mic:`<rect x="9" y="3.5" width="6" height="10.5" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17.5v3"/>`,
+  send:`<path d="M4 12 20 4 13 20l-2-7-7-1Z"/>`,
+  briefcase:`<rect x="3.5" y="8" width="17" height="11" rx="2"/><path d="M8.5 8V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2"/>`,
+  house:`<path d="M5 11 12 5l7 6v7.5a1 1 0 0 1-1 1h-4v-5h-4v5H6a1 1 0 0 1-1-1V11Z"/>`,
+  heart:`<path d="M12 20s-7.5-4.6-9.5-9.3C1.2 7 3.5 4 6.8 4c2 0 3.7 1.2 5.2 3 1.5-1.8 3.2-3 5.2-3 3.3 0 5.6 3 4.3 6.7C19.5 15.4 12 20 12 20Z"/>`,
+  wallet:`<rect x="3.5" y="6.5" width="17" height="12" rx="2.5"/><path d="M16 12.5h3M3.5 10h17"/>`,
+  chartBar:`<path d="M5 20V11M11 20V6M17 20v-7"/><path d="M3.5 20.5h17"/>`,
+  moon:`<path d="M20 14.2A8.5 8.5 0 1 1 9.8 4a7 7 0 0 0 10.2 10.2Z"/>`,
+  shield:`<path d="M12 3.5 19 6.3v5.3c0 4.7-3 7.7-7 9.4-4-1.7-7-4.7-7-9.4V6.3L12 3.5Z"/>`,
+  logout:`<path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M15 16l4-4-4-4M19 12H9"/>`,
+  chevron:`<path d="M9 5.5 15.5 12 9 18.5"/>`,
+  star:`<path d="M12 3.5 14.6 9l6 .9-4.3 4.2 1 6-5.3-2.8L6.7 20l1-6L3.4 9.9l6-.9L12 3.5Z"/>`,
+  book:`<path d="M5 4.5h9a2.5 2.5 0 0 1 2.5 2.5v12.5H7.5A2.5 2.5 0 0 1 5 17V4.5Z"/><path d="M16.5 7H19v12.5h-2.5"/>`,
+  search:`<circle cx="10.5" cy="10.5" r="6.5"/><path d="M19.5 19.5 15 15"/>`,
+  filter:`<path d="M4 6h16M7 12h10M10.5 18h3"/>`,
+  mail:`<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4.5 7 12 12.5 19.5 7"/>`,
+  lock:`<rect x="5" y="10.5" width="14" height="9" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>`,
+  eye:`<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/>`,
+  clock:`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/>`,
+  edit:`<path d="M15.5 4.5 19.5 8.5 8 20H4v-4L15.5 4.5Z"/>`,
+  flag:`<path d="M6 3.5v17M6 4.5h11l-2.5 4L17 12.5H6"/>`,
+  target:`<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>`,
+  sun:`<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>`,
+  droplet:`<path d="M12 3.5s6 6.7 6 11a6 6 0 0 1-12 0c0-4.3 6-11 6-11Z"/>`,
+  google:`<path d="M20.5 12.2c0-.7-.06-1.3-.18-1.9H12v3.7h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.6-3.9 2.6-6.7Z"/><path d="M12 21c2.4 0 4.5-.8 6-2.1l-2.9-2.2c-.8.5-1.9.9-3.1.9-2.4 0-4.4-1.6-5.1-3.7H3.9v2.3A9 9 0 0 0 12 21Z"/><path d="M6.9 13.9a5.4 5.4 0 0 1 0-3.8V7.8H3.9a9 9 0 0 0 0 8.1l3-2Z"/><path d="M12 6.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 3.9 7.8l3 2.3c.7-2.1 2.7-3.5 5.1-3.5Z"/>`,
+};
+function icon(name,size=20,strokeWidth=1.9,color='currentColor'){
+  return `<span class="icon"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${I[name]||''}</svg></span>`;
+}
+function tile(bg,fg,name){
+  return `<div class="icon-tile" style="background:${bg};color:${fg}">${icon(name,17,2)}</div>`;
+}
+function statusbar(){
+  return `<div class="statusbar"><span>9:41</span><span style="display:flex;gap:4px;align-items:center">${icon('sun',13,2.2)} 100%</span></div>`;
+}
+function ring(pct,label,sub){
+  const r=30,c=2*Math.PI*r,off=c-(pct/100)*c;
+  return `<div class="ring-wrap">
+    <svg width="74" height="74"><circle cx="37" cy="37" r="${r}" stroke="#E4F5F2" stroke-width="7" fill="none"/>
+    <circle cx="37" cy="37" r="${r}" stroke="url(#g1)" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
+    <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0E9384"/><stop offset="100%" stop-color="#12D3A0"/></linearGradient></defs>
+    </svg>
+    <div class="ring-center">${label}</div>
+  </div>`;
+}
+function bottomNav(active){
+  const items=[['home','Home'],['calendar','Calendar'],['ai','AI'],['habit','Habits'],['user','Me']];
+  return `<div class="bottomnav">${items.map(([k,l])=>{
+    if(k==='ai'){return `<div class="nav-item"><div class="nav-fab">${icon('ai',22,2,'#fff')}</div></div>`;}
+    const on = k===active;
+    return `<div class="nav-item ${on?'active':''}">${icon(k,20,on?2.3:1.9)}<span>${l}</span></div>`;
+  }).join('')}</div>`;
+}
+function phone(label, innerHTML, opts={}){
+  return `<div class="phone-wrap"><div class="phone-label">${label}</div>
+    <div class="phone"><div class="notch"></div>
+      ${opts.noStatus?'':statusbar()}
+      <div class="screen-body">${innerHTML}</div>
+    </div></div>`;
+}
+
+/* ---------------- AUTH GROUP ---------------- */
+const splash = phone('Splash', `
+  <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:linear-gradient(180deg,#0E9384,#0A6F63)">
+    <div style="width:76px;height:76px;border-radius:24px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;">${icon('ai',38,1.7,'#fff')}</div>
+    <div style="font-family:'Manrope';font-weight:800;font-size:24px;color:#fff;letter-spacing:-0.02em;">LifePilot</div>
+    <div style="font-size:12.5px;color:rgba(255,255,255,0.75);">Your day, gently organized</div>
+  </div>`, {noStatus:true});
+
+function onboarding(step,title,sub,glyph,accent){
+  const dots=[0,1,2].map(i=>`<div style="width:${i===step?18:6}px;height:6px;border-radius:4px;background:${i===step?'#0E9384':'#DCE8E5'}"></div>`).join('');
+  return phone(`Onboarding ${step+1}/3`, `
+    <div class="scroll" style="display:flex;flex-direction:column;height:100%;padding-top:30px;">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;">
+        <div style="width:150px;height:150px;border-radius:38px;background:${accent};display:flex;align-items:center;justify-content:center;">${icon(glyph,64,1.4,'#0A6F63')}</div>
+        <div style="text-align:center;padding:0 8px;">
+          <div style="font-family:'Manrope';font-weight:800;font-size:20px;margin-bottom:8px;letter-spacing:-0.01em;">${title}</div>
+          <div style="font-size:13px;color:var(--text-soft);line-height:1.6;">${sub}</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;gap:6px;margin-bottom:18px;">${dots}</div>
+      <button class="btn-primary" style="margin-bottom:10px;">${step===2?'Get started':'Continue'} ${icon('chevron',16,2.4,'#fff')}</button>
+      ${step<2?'<div style="text-align:center;font-size:12.5px;color:var(--text-faint);font-weight:600;">Skip</div>':''}
+    </div>`);
+}
+const ob1 = onboarding(0,'Plan your whole life in one place','Tasks, calendar, habits and goals — unified in a single, calm view.', 'target','#E4F5F2');
+const ob2 = onboarding(1,'Build habits that actually stick','Track streaks, get gentle nudges, and see your consistency grow.', 'habit', '#FFF1E6');
+const ob3 = onboarding(2,'Meet your AI co-pilot','Ask it to plan your day, reshuffle tasks, or turn a thought into a habit.', 'ai', '#EFECFC');
+
+const signup = phone('Sign Up', `
+  <div class="scroll">
+    <div style="padding-top:22px;text-align:center;margin-bottom:22px;">
+      <div class="brand-mark" style="width:44px;height:44px;margin:0 auto 12px;">${icon('ai',22,1.9)}</div>
+      <div style="font-family:'Manrope';font-weight:800;font-size:20px;">Create your account</div>
+      <div style="font-size:12.5px;color:var(--text-soft);margin-top:4px;">Start planning smarter, today.</div>
+    </div>
+    <div class="input">${icon('user',17,1.9)}<input placeholder="Full name"></div>
+    <div class="input">${icon('mail',17,1.9)}<input placeholder="Email address"></div>
+    <div class="input">${icon('lock',17,1.9)}<input placeholder="Create password" style="flex:1"><span>${icon('eye',17,1.9)}</span></div>
+    <div style="font-size:11px;color:var(--text-faint);margin-bottom:16px;line-height:1.5;">By continuing you agree to LifePilot's <span style="color:var(--primary);font-weight:700;">Terms</span> &amp; <span style="color:var(--primary);font-weight:700;">Privacy Policy</span>.</div>
+    <button class="btn-primary" style="margin-bottom:14px;">Create account</button>
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0 14px;"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:11px;color:var(--text-faint);">or continue with</span><div style="flex:1;height:1px;background:var(--border)"></div></div>
+    <button class="btn-secondary" style="margin-bottom:10px;">${icon('google',17,1.7)} Continue with Google</button>
+    <div style="text-align:center;font-size:12.5px;color:var(--text-soft);margin-top:8px;">Already have an account? <span style="color:var(--primary);font-weight:700;">Log in</span></div>
+  </div>`);
+
+const signin = phone('Sign In', `
+  <div class="scroll">
+    <div style="padding-top:60px;text-align:center;margin-bottom:26px;">
+      <div class="brand-mark" style="width:52px;height:52px;margin:0 auto 14px;">${icon('ai',26,1.8)}</div>
+      <div style="font-family:'Manrope';font-weight:800;font-size:14px;color:var(--primary);margin-bottom:14px;">LifePilot</div>
+      <div style="font-family:'Manrope';font-weight:800;font-size:22px;">Welcome back</div>
+      <div style="font-size:13px;color:var(--text-soft);margin-top:4px;">Sign in to continue your life planning.</div>
+    </div>
+    <div class="input">${icon('mail',17,1.9)}<input placeholder="Email"></div>
+    <div class="input">${icon('lock',17,1.9)}<input placeholder="Password" style="flex:1"><span>${icon('eye',17,1.9)}</span></div>
+    <div style="text-align:right;font-size:12px;color:var(--primary);font-weight:700;margin-bottom:20px;">Forgot password?</div>
+    <button class="btn-primary" style="margin-bottom:14px;">Log in</button>
+    <div style="text-align:center;font-size:12.5px;color:var(--text-soft);">New to LifePilot? <span style="color:var(--primary);font-weight:700;">Create an account</span></div>
+  </div>`);
+
+const forgot = phone('Forgot Password', `
+  <div class="scroll">
+    <div style="padding-top:20px;">${icon('back',20,2)}</div>
+    <div style="margin-top:20px;">
+      <div style="width:60px;height:60px;border-radius:18px;background:var(--primary-tint);display:flex;align-items:center;justify-content:center;margin-bottom:18px;">${icon('lock',26,1.8)}</div>
+      <div style="font-family:'Manrope';font-weight:800;font-size:20px;margin-bottom:6px;">Reset your password</div>
+      <div style="font-size:13px;color:var(--text-soft);margin-bottom:22px;line-height:1.6;">Enter the email linked to your account — we'll send a 6-digit code to reset it.</div>
+    </div>
+    <div class="input">${icon('mail',17,1.9)}<input placeholder="Email address"></div>
+    <button class="btn-primary" style="margin-top:8px;">Send reset code</button>
+  </div>`);
+
+/* ---------------- CORE GROUP ---------------- */
+const home = phone('Home Dashboard', `
+  <div class="scroll">
+    <div class="top-header">
+      <div class="brand"><div class="brand-mark">${icon('ai',16,2)}</div><div class="brand-name">LifePilot</div></div>
+      <div class="header-actions"><div class="icon-btn">${icon('bell',17,2)}<div class="dot-badge"></div></div><div class="avatar">C</div></div>
+    </div>
+    <div class="greeting">Good afternoon</div>
+    <div style="font-family:'Manrope';font-weight:800;font-size:21px;margin-bottom:16px;">Chhotu 👋</div>
+
+    <div class="card" style="background:linear-gradient(135deg,#0E9384,#0A6F63);border:none;color:#fff;display:flex;align-items:center;gap:14px;">
+      ${ring(64,'64%')}
+      <div style="flex:1;">
+        <div style="font-size:11.5px;opacity:0.85;font-weight:600;">TODAY'S BALANCE</div>
+        <div style="font-family:'Manrope';font-weight:800;font-size:15px;margin:3px 0 6px;">3 of 5 done — nice pace</div>
+        <div style="display:flex;gap:10px;font-size:11px;opacity:0.9;"><span>🔥 3-day streak</span><span>2 due today</span></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;display:flex;gap:10px;align-items:flex-start;border-color:var(--accent-purple-tint);background:var(--accent-purple-tint);">
+      <div class="icon-tile" style="background:#fff;color:var(--accent-purple);">${icon('ai',17,2)}</div>
+      <div style="flex:1;"><div style="font-size:11px;font-weight:800;color:var(--accent-purple);margin-bottom:2px;">AI SUGGESTION</div>
+      <div style="font-size:12.5px;color:var(--text);line-height:1.5;">You've skipped "Read" 2 days running — want me to move it to mornings?</div></div>
+    </div>
+
+    <div class="section-row"><h2>Today's tasks</h2><span class="link-sm">View all</span></div>
+    <div class="card" style="margin-bottom:10px;"><div class="rowline" style="padding:0;">
+      <div class="left">${icon('circleEmpty',20,1.8,'#0E9384')}<div><div style="font-size:13.5px;font-weight:600;">Finish Q3 report</div><div style="font-size:11px;color:var(--text-faint);">Work · 5:00 PM</div></div></div>
+      <span class="badge high">High</span></div></div>
+    <div class="card" style="margin-bottom:10px;"><div class="rowline" style="padding:0;">
+      <div class="left">${icon('checkCircle',20,1.8,'#0E9384')}<div><div style="font-size:13.5px;font-weight:600;text-decoration:line-through;color:var(--text-faint);">Morning workout</div><div style="font-size:11px;color:var(--text-faint);">Health · 7:00 AM</div></div></div>
+      <span class="badge low">Done</span></div></div>
+
+    <div class="section-row"><h2>Habit progress</h2><span class="link-sm">See all</span></div>
+    <div style="display:flex;gap:10px;">
+      <div class="card" style="flex:1;">${tile('var(--accent-orange-tint)','var(--accent-orange)','habit')}<div style="font-size:12.5px;font-weight:700;margin-top:8px;">Exercise</div><div style="font-size:10.5px;color:var(--text-faint);">3 day streak</div></div>
+      <div class="card" style="flex:1;">${tile('var(--primary-tint)','var(--primary)','droplet')}<div style="font-size:12.5px;font-weight:700;margin-top:8px;">Water</div><div style="font-size:10.5px;color:var(--text-faint);">5 day streak</div></div>
+    </div>
+  </div>
+  <div class="fab-round">${icon('plus',22,2.2,'#fff')}</div>
+  ${bottomNav('home')}`);
+
+const calendar = phone('Calendar', `
+  <div class="scroll">
+    <div class="top-header"><div style="display:flex;align-items:center;gap:10px;">${icon('back',19,2)}<span style="font-family:'Manrope';font-weight:800;font-size:17px;">Calendar</span></div>${icon('calendar',19,1.9,'#0E9384')}</div>
+    <div style="display:flex;gap:8px;margin:14px 0 12px;"><div class="chip active">Month</div><div class="chip">Week</div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">${icon('chevron',16,2)}<span style="font-family:'Manrope';font-weight:800;font-size:14.5px;">August 2026</span><span style="transform:rotate(180deg);display:inline-block">${icon('chevron',16,2)}</span></div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center;font-size:10.5px;color:var(--text-faint);font-weight:700;margin-bottom:6px;">
+      ${['M','T','W','T','F','S','S'].map(d=>`<div>${d}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">
+      ${Array.from({length:35}).map((_,i)=>{const d=i-2; const active=d===8; const has=[3,8,12,20].includes(d);
+        return `<div style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:9px;font-size:11.5px;font-weight:${active?800:600};
+        background:${active?'var(--primary)':'transparent'};color:${active?'#fff':d<1||d>31?'var(--text-faint)':'var(--text)'};position:relative;">
+        ${((d-1+31)%31)+1}${has&&!active?`<span style="width:3px;height:3px;border-radius:50%;background:var(--primary);position:absolute;bottom:4px;"></span>`:''}</div>`;}).join('')}
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Tasks for Aug 8</div>
+    <div class="card" style="margin-bottom:10px;"><div class="rowline" style="padding:0;"><div class="left">${tile('var(--accent-orange-tint)','var(--accent-orange)','briefcase')}<div><div style="font-size:13px;font-weight:600;">Team sync call</div><div style="font-size:11px;color:var(--text-faint);">10:00 AM</div></div></div>${icon('chevron',15,2,'var(--text-faint)')}</div></div>
+  </div>
+  ${bottomNav('calendar')}`);
+
+const addtask = phone('Add Task (Modal)', `
+  <div style="height:100%;position:relative;">
+    <div class="scroll" style="filter:blur(2px);opacity:0.5;padding-top:20px;">
+      <div class="top-header"><span style="font-family:'Manrope';font-weight:800;font-size:17px;">All Tasks</span></div>
+      <div class="card" style="margin-top:8px;height:60px;"></div><div class="card" style="margin-top:10px;height:60px;"></div>
+    </div>
+    <div style="position:absolute;inset:0;background:rgba(10,30,26,0.4);display:flex;align-items:flex-end;">
+      <div style="background:var(--surface);width:100%;border-radius:24px 24px 0 0;padding:20px;box-shadow:0 -10px 30px rgba(0,0,0,0.15);">
+        <div style="width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 16px;"></div>
+        <div style="font-family:'Manrope';font-weight:800;font-size:17px;margin-bottom:14px;">New task</div>
+        <div class="input">${icon('edit',17,1.8)}<input placeholder="Task title"></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <div class="input" style="flex:1;margin-bottom:0;">${tile('var(--primary-tint)','var(--primary)','house')}<span style="font-size:13px;font-weight:600;">Personal</span></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <div class="chip active" style="flex:1;text-align:center;">Low</div><div class="chip" style="flex:1;text-align:center;">Medium</div><div class="chip" style="flex:1;text-align:center;">High</div>
+        </div>
+        <div style="display:flex;gap:10px;"><button class="btn-secondary">Cancel</button><button class="btn-primary">${icon('plus',16,2.3,'#fff')} Add task</button></div>
+      </div>
+    </div>
+  </div>`);
+
+const tasks = phone('All Tasks', `
+  <div class="scroll">
+    <div class="top-header"><span style="font-family:'Manrope';font-weight:800;font-size:19px;">Tasks</span><div class="icon-btn">${icon('filter',16,2)}</div></div>
+    <div class="input" style="margin-top:6px;">${icon('search',17,1.9)}<input placeholder="Search tasks"></div>
+    <div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;">
+      <div class="chip active">All · 8</div><div class="chip">Today · 3</div><div class="chip">Overdue · 1</div><div class="chip">Done · 4</div>
+    </div>
+    ${[
+      ['Finish Q3 report','Work · Today, 5:00 PM','briefcase','var(--accent-orange-tint)','var(--accent-orange)','high','High'],
+      ['Pay electricity bill','Finance · Today','wallet','#FDE8E8','var(--danger)','med','Medium'],
+      ['Book dentist appointment','Health · Tomorrow','heart','var(--primary-tint)','var(--primary)','low','Low'],
+      ['Grocery shopping','Personal · Aug 10','house','var(--accent-purple-tint)','var(--accent-purple)','low','Low'],
+    ].map(([t,s,i,bg,fg,cls,label])=>`
+    <div class="card" style="margin-bottom:10px;"><div class="rowline" style="padding:0;">
+      <div class="left">${icon('circleEmpty',20,1.8,'#C6D6D2')}${tile(bg,fg,i)}<div><div style="font-size:13px;font-weight:700;">${t}</div><div style="font-size:11px;color:var(--text-faint);">${s}</div></div></div>
+      <span class="badge ${cls}">${label}</span></div></div>`).join('')}
+  </div>
+  <div class="fab-round">${icon('plus',22,2.2,'#fff')}</div>
+  ${bottomNav('home')}`);
+
+const habits = phone('Habit Tracker', `
+  <div class="scroll">
+    <div class="top-header"><div style="display:flex;align-items:center;gap:10px;">${icon('back',19,2)}<span style="font-family:'Manrope';font-weight:800;font-size:17px;">Habit Tracker</span></div></div>
+    <div style="font-size:12.5px;color:var(--text-soft);margin-bottom:14px;">Build consistency one day at a time.</div>
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-family:'Manrope';font-weight:700;font-size:14px;margin-bottom:12px;">Habit statistics</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;">
+        <div><div style="color:var(--text-faint);">Total habits</div><div style="font-weight:800;font-size:16px;">3</div></div>
+        <div><div style="color:var(--text-faint);">Completed today</div><div style="font-weight:800;font-size:16px;">2/3</div></div>
+        <div><div style="color:var(--text-faint);">Completion rate</div><div style="font-weight:800;font-size:16px;color:var(--primary);">67%</div></div>
+        <div><div style="color:var(--text-faint);">Current streak</div><div style="font-weight:800;font-size:16px;">🔥 3 days</div></div>
+      </div>
+    </div>
+    ${[['Exercise','Every day exercise','Daily','3','5','60','habit','var(--accent-orange-tint)','var(--accent-orange)'],
+       ['Drink water','8 glasses a day','Daily','5','5','100','droplet','var(--primary-tint)','var(--primary)'],
+       ['Read 20 min','Before bed','Daily','1','9','20','book','var(--accent-purple-tint)','var(--accent-purple)']]
+      .map(([n,d,f,cur,best,pct,ic,bg,fg])=>`
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="display:flex;gap:10px;">${tile(bg,fg,ic)}<div><div style="font-weight:700;font-size:13.5px;">${n}</div><div style="font-size:11px;color:var(--text-faint);">${d}</div></div></div>
+        <div class="icon-btn" style="width:30px;height:30px;background:var(--primary);color:#fff;border:none;">${icon('check',15,2.6,'#fff')}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-faint);margin:10px 0 5px;"><span>${f} · Current ${cur}d · Best ${best}d</span></div>
+      <div style="height:6px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--primary),#12D3A0);"></div></div>
+    </div>`).join('')}
+  </div>
+  <div class="fab-round">${icon('plus',22,2.2,'#fff')}</div>
+  ${bottomNav('habit')}`);
+
+/* ---------------- DEPTH / AI GROUP ---------------- */
+const aichat = phone('AI Assistant', `
+  <div style="height:100%;display:flex;flex-direction:column;">
+    <div class="top-header" style="padding:14px 18px 10px;"><div style="display:flex;align-items:center;gap:10px;">${icon('back',19,2)}
+      <div class="brand-mark" style="background:var(--accent-purple-tint);color:var(--accent-purple);">${icon('ai',16,2)}</div>
+      <div><div style="font-family:'Manrope';font-weight:800;font-size:14.5px;">AI Co-pilot</div><div style="font-size:10.5px;color:var(--primary);">● Online</div></div></div></div>
+    <div class="scroll" style="flex:1;">
+      <div style="display:flex;justify-content:center;margin:10px 0 16px;"><span style="font-size:10.5px;color:var(--text-faint);background:var(--surface);padding:4px 10px;border-radius:10px;border:1px solid var(--border);">Today, 2:14 PM</span></div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;"><div class="brand-mark" style="width:26px;height:26px;flex-shrink:0;background:var(--accent-purple-tint);color:var(--accent-purple);">${icon('ai',13,2)}</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px 14px 14px 4px;padding:11px 13px;font-size:12.5px;line-height:1.55;max-width:210px;">Good afternoon! You have 2 tasks left and a workout habit pending. Want me to reshuffle your evening?</div></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:14px;"><div style="background:var(--primary);color:#fff;border-radius:14px 14px 4px 14px;padding:11px 13px;font-size:12.5px;max-width:190px;">Yes, move workout to 7pm and remind me</div></div>
+      <div style="display:flex;gap:8px;margin-bottom:6px;"><div class="brand-mark" style="width:26px;height:26px;flex-shrink:0;background:var(--accent-purple-tint);color:var(--accent-purple);">${icon('ai',13,2)}</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px 14px 14px 4px;padding:11px 13px;font-size:12.5px;line-height:1.55;max-width:210px;">
+        Done — moved "Workout" to 7:00 PM and set a reminder.
+        <div style="margin-top:8px;background:var(--primary-tint);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:8px;">${icon('checkCircle',15,2,'var(--primary)')}<span style="font-size:11.5px;font-weight:700;">Workout · 7:00 PM</span></div></div></div>
+    </div>
+    <div style="padding:10px 16px 16px;display:flex;gap:8px;align-items:center;">
+      <div class="input" style="flex:1;margin-bottom:0;">${icon('plus',17,1.9)}<input placeholder="Ask LifePilot anything…"></div>
+      <div class="icon-btn" style="background:var(--primary);color:#fff;border:none;">${icon('mic',16,1.9,'#fff')}</div>
+    </div>
+  </div>`);
+
+const goals = phone('Goals', `
+  <div class="scroll">
+    <div class="top-header"><div style="display:flex;align-items:center;gap:10px;">${icon('back',19,2)}<span style="font-family:'Manrope';font-weight:800;font-size:17px;">Goals</span></div><div class="icon-btn">${icon('plus',17,2)}</div></div>
+    <div class="card" style="margin:14px 0;background:linear-gradient(135deg,var(--accent-purple),#5B4BC4);border:none;color:#fff;">
+      <div style="font-size:11px;opacity:0.85;font-weight:700;">Q3 FOCUS</div>
+      <div style="font-family:'Manrope';font-weight:800;font-size:15px;margin:4px 0 10px;">Get healthier, ship the app</div>
+      <div style="font-size:11px;">2 of 3 goals on track</div>
+    </div>
+    ${[['Run a 10K','Health',72,'target','var(--primary-tint)','var(--primary)'],
+       ['Launch LifePilot v1','Work',45,'briefcase','var(--accent-orange-tint)','var(--accent-orange)'],
+       ['Read 12 books this year','Personal',30,'book','var(--accent-purple-tint)','var(--accent-purple)']]
+      .map(([n,cat,pct,ic,bg,fg])=>`
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">${tile(bg,fg,ic)}<div><div style="font-weight:700;font-size:13.5px;">${n}</div><div style="font-size:11px;color:var(--text-faint);">${cat}</div></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-faint);margin-bottom:5px;"><span>Progress</span><span style="font-weight:700;color:${fg}">${pct}%</span></div>
+      <div style="height:6px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${fg};"></div></div>
+    </div>`).join('')}
+  </div>
+  ${bottomNav('habit')}`);
+
+const insights = phone('Insights', `
+  <div class="scroll">
+    <div class="top-header"><div style="display:flex;align-items:center;gap:10px;">${icon('back',19,2)}<span style="font-family:'Manrope';font-weight:800;font-size:17px;">Insights</span></div></div>
+    <div style="display:flex;gap:8px;margin:14px 0;"><div class="chip active">Week</div><div class="chip">Month</div><div class="chip">Year</div></div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;">
+      <div class="card" style="flex:1;text-align:center;"><div style="font-family:'Manrope';font-weight:800;font-size:20px;color:var(--primary);">82%</div><div style="font-size:10.5px;color:var(--text-faint);">Task completion</div></div>
+      <div class="card" style="flex:1;text-align:center;"><div style="font-family:'Manrope';font-weight:800;font-size:20px;color:var(--accent-orange);">🔥 6</div><div style="font-size:10.5px;color:var(--text-faint);">Best streak</div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:14px;">Tasks completed</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:90px;">
+        ${[40,65,50,90,70,30,55].map((h,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;"><div style="width:100%;height:${h}px;border-radius:6px;background:${i===3?'var(--primary)':'var(--primary-tint)'};"></div><span style="font-size:9.5px;color:var(--text-faint);">${['M','T','W','T','F','S','S'][i]}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="card" style="display:flex;gap:10px;align-items:flex-start;background:var(--accent-purple-tint);border-color:var(--accent-purple-tint);">
+      ${tile('#fff','var(--accent-purple)','ai')}
+      <div><div style="font-size:11px;font-weight:800;color:var(--accent-purple);margin-bottom:2px;">WEEKLY PATTERN</div>
+      <div style="font-size:12px;line-height:1.5;">You're most productive Thursday mornings — consider scheduling deep work then.</div></div>
+    </div>
+  </div>
+  ${bottomNav('habit')}`);
+
+const notifs = phone('Notifications', `
+  <div class="scroll">
+    <div class="top-header"><div style="display:flex;align-items:center;gap:10px;">${icon('back',19,2)}<span style="font-family:'Manrope';font-weight:800;font-size:17px;">Notifications</span></div><span class="link-sm">Clear all</span></div>
+    <div style="font-size:11px;font-weight:800;color:var(--text-faint);margin:14px 0 8px;">TODAY</div>
+    ${[['ai','var(--accent-purple-tint)','var(--accent-purple)','AI suggestion','Move "Read" to mornings for a better streak?','2m ago'],
+       ['checkCircle','var(--primary-tint)','var(--primary)','Task completed','"Morning workout" marked done. Nice!','1h ago'],
+       ['habit','var(--accent-orange-tint)','var(--accent-orange)','Streak reminder','Log "Water" before midnight to keep your streak.','3h ago']]
+      .map(([ic,bg,fg,t,s,time])=>`
+    <div class="card" style="margin-bottom:10px;"><div style="display:flex;gap:10px;">${tile(bg,fg,ic)}
+      <div style="flex:1;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:700;font-size:12.5px;">${t}</span><span style="font-size:10px;color:var(--text-faint);">${time}</span></div>
+      <div style="font-size:11.5px;color:var(--text-soft);line-height:1.4;margin-top:2px;">${s}</div></div></div></div>`).join('')}
+    <div style="font-size:11px;font-weight:800;color:var(--text-faint);margin:16px 0 8px;">EARLIER</div>
+    <div class="card" style="margin-bottom:10px;opacity:0.7;"><div style="display:flex;gap:10px;">${tile('var(--border)','var(--text-faint)','calendar')}
+      <div style="flex:1;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:700;font-size:12.5px;">Event tomorrow</span><span style="font-size:10px;color:var(--text-faint);">Yesterday</span></div>
+      <div style="font-size:11.5px;color:var(--text-soft);">"Team sync" at 10:00 AM</div></div></div></div>
+  </div>
+  ${bottomNav('home')}`);
+
+/* ---------------- ACCOUNT GROUP ---------------- */
+const profile = phone('Profile & Settings', `
+  <div class="scroll">
+    <div class="top-header"><div style="display:flex;align-items:center;gap:10px;">${icon('back',19,2)}<span style="font-family:'Manrope';font-weight:800;font-size:17px;">My Profile</span></div></div>
+    <div style="text-align:center;margin:14px 0 20px;">
+      <div class="avatar" style="width:72px;height:72px;font-size:24px;margin:0 auto 8px;">C</div>
+      <div style="font-size:11.5px;color:var(--primary);font-weight:700;">${icon('edit',12,2)} Choose avatar</div>
+    </div>
+    <div style="font-size:11px;font-weight:800;color:var(--text-faint);margin-bottom:8px;">PERSONAL INFORMATION</div>
+    <div class="input">${icon('user',17,1.9)}<input value="Chhotu" placeholder="Name"></div>
+    <div class="input">${icon('mail',17,1.9)}<input value="cksoni3296@gmail.com" placeholder="Email"></div>
+    <div style="font-size:11px;font-weight:800;color:var(--text-faint);margin:14px 0 4px;">PREFERENCES</div>
+    <div class="rowline"><div class="left">${tile('var(--primary-tint)','var(--primary)','sun')}<span style="font-size:13px;font-weight:600;">Theme</span></div><div style="font-size:12.5px;color:var(--text-soft);display:flex;gap:4px;align-items:center;">Light ${icon('chevron',14,2)}</div></div>
+    <div class="rowline"><div class="left">${tile('var(--primary-tint)','var(--primary)','bell')}<span style="font-size:13px;font-weight:600;">Notifications</span></div><div class="toggle on"><div class="knob"></div></div></div>
+    <div class="rowline"><div class="left">${tile('var(--primary-tint)','var(--primary)','clock')}<span style="font-size:13px;font-weight:600;">Reminders</span></div><div class="toggle on"><div class="knob"></div></div></div>
+    <div class="rowline"><div class="left">${tile('var(--primary-tint)','var(--primary)','shield')}<span style="font-size:13px;font-weight:600;">Privacy &amp; data</span></div>${icon('chevron',15,2,'var(--text-faint)')}</div>
+    <button class="btn-primary" style="margin-top:16px;">Save changes</button>
+    <button class="btn-secondary" style="margin-top:10px;color:var(--danger);border-color:#FDE8E8;">${icon('logout',16,2)} Log out</button>
+  </div>
+  ${bottomNav('user')}`);
+
+document.getElementById('gallery-auth').innerHTML = splash+ob1+ob2+ob3+signup+signin+forgot;
+document.getElementById('gallery-core').innerHTML = home+calendar+addtask+tasks+habits;
+document.getElementById('gallery-depth').innerHTML = aichat+goals+insights+notifs;
+document.getElementById('gallery-account').innerHTML = profile;
+</script>
+</body>
+</html>
