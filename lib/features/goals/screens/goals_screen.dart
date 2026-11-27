@@ -343,6 +343,8 @@ class _GoalEditorState extends State<_GoalEditor> {
         id: widget.goal?.id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         title: _title.text.trim(),
         category: _category,
+        description: widget.goal?.description ?? '',
+        milestones: widget.goal?.milestones,
         progress: _progress,
         targetDate: _targetDate,
       ),

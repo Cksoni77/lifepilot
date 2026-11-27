@@ -24,22 +24,23 @@ Choose a real local password and use the same value in `DATABASE_PASSWORD`. Flyw
 
 ## 2. Configure and run the backend
 
-Copy `.env.example` for reference; Spring Boot does not load dotenv files automatically. In PowerShell, set each variable in the terminal that will run Maven:
+The backend is a sibling directory at `..\lifepilot_backend`. Copy its `.env.example` for reference; Spring Boot does not load dotenv files automatically. In PowerShell, change to the backend directory and set each variable in the terminal that will run Maven:
 
 ```powershell
+Set-Location ..\lifepilot_backend
 $env:DATABASE_URL = 'jdbc:postgresql://localhost:5432/lifepilot'
 $env:DATABASE_USERNAME = 'lifepilot'
 $env:DATABASE_PASSWORD = 'replace-with-your-local-password'
 $env:JWT_SECRET = python -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"
 $env:OPENAI_API_KEY = ''
-mvn -f lifepilot_backend\pom.xml spring-boot:run
+mvn spring-boot:run
 ```
 
 `JWT_SECRET` must be a base64-encoded random key of at least 32 bytes. `OPENAI_API_KEY` is optional; without it, deterministic saved-task answers still work.
 
 ## 3. Run Flutter
 
-In another terminal:
+In another terminal, from the `lifepilot` directory:
 
 ```powershell
 flutter pub get
@@ -55,4 +56,4 @@ The Android debug manifest allows local HTTP; release builds do not enable clear
 
 ## Existing local data
 
-The API cutover does not import existing SharedPreferences task/habit/goal records. They are left on the device; do not clear app data while migrating. Old local auth secrets are scrubbed and users must register/login on the backend. A supported user-facing export/import workflow is still required before users can move existing records into PostgreSQL or another device.
+Use **My Profile → Import previous local data** after signing in with the email used by the old local account. The import sends tasks, habits, goals, completion history and task-goal links through authenticated create APIs. It does not delete or rewrite local records; retrying after an interruption is safe. Keep the app data until you verify the server records. Legacy local credentials are scrubbed; use backend registration/login.

@@ -113,20 +113,14 @@ class TaskService {
     'dueAt': _withOffset(task.dueDate),
     'reminderAt': _withOffset(task.reminderDate),
     'reminderEnabled': task.reminderEnabled,
+    'completed': task.completed,
+    'completedAt': _withOffset(task.completedAt),
     'estimatedMinutes': task.estimatedMinutes,
     'goalId': task.goalId,
   };
 
   String? _withOffset(DateTime? date) {
-    if (date == null || date.isUtc) return date?.toIso8601String();
-    final offset = date.timeZoneOffset;
-    final sign = offset.isNegative ? '-' : '+';
-    final hours = offset.inHours.abs().toString().padLeft(2, '0');
-    final minutes = offset.inMinutes
-        .abs()
-        .remainder(60)
-        .toString()
-        .padLeft(2, '0');
-    return '${date.toIso8601String()}$sign$hours:$minutes';
+    if (date == null) return null;
+    return date.toUtc().toIso8601String();
   }
 }

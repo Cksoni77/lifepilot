@@ -50,7 +50,6 @@ migrate_working_dir/
 .pub-cache/
 build/
 coverage/
-/lifepilot_backend/target/
 
 **/doc/api/
 **/ios/Flutter/.last_build_id

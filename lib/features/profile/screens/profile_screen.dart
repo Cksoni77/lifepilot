@@ -6,6 +6,7 @@ import '../../../core/network/api_client.dart';
 import '../../auth/screens/sign_in_screen.dart';
 import '../../notifications/services/notification_service.dart';
 import '../../tasks/services/task_service.dart';
+import '../services/legacy_data_migration_service.dart';
 import '../../../shared_controllers/app_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,6 +17,67 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _importingLegacyData = false;
+
+  Future<void> _importLegacyData(AppController controller) async {
+    final user = controller.user;
+    if (user == null || _importingLegacyData) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import previous local data?'),
+        content: const Text(
+          'Tasks, habits, and goals saved on this device will be copied to '
+          'your account. Your original local data will not be deleted. '
+          'You can safely retry if the import is interrupted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _importingLegacyData = true);
+    try {
+      final result = await LegacyDataMigrationService().importFor(user);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Copied or confirmed ${result.tasks} tasks, ${result.habits} '
+            'habits, and ${result.goals} goals. Local copies were kept.',
+          ),
+        ),
+      );
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } on StateError catch (error) {
+      _showMessage(error.message.toString());
+    } on FormatException catch (error) {
+      _showMessage(error.message.toString());
+    } on ArgumentError catch (error) {
+      _showMessage(error.message.toString());
+    } finally {
+      if (mounted) setState(() => _importingLegacyData = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _setNotifications(AppController controller, bool enabled) async {
     await controller.setNotificationsEnabled(enabled);
     await _syncTaskRemindersWithFeedback(controller);
@@ -188,6 +250,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: controller.notificationsEnabled
                 ? (value) => _setReminders(controller, value)
                 : null,
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.cloud_upload_outlined),
+            title: const Text('Import previous local data'),
+            subtitle: const Text(
+              'Copy tasks, habits, and goals from this device',
+            ),
+            trailing: _importingLegacyData
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : null,
+            enabled: !_importingLegacyData,
+            onTap: () => _importLegacyData(controller),
           ),
 
           const Divider(height: 32),

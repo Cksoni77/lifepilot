@@ -5,14 +5,15 @@ LifePilot is a Flutter personal-management app with a Spring Boot REST backend. 
 ## Run locally (Windows / Android emulator)
 
 1. Start PostgreSQL and configure the backend environment. See [SETUP_GUIDE.md](SETUP_GUIDE.md).
-2. From the repository root, start Spring Boot:
+2. In a backend terminal, start Spring Boot from the sibling backend directory:
 
    ```powershell
+   Set-Location ..\lifepilot_backend
    $env:DATABASE_URL = 'jdbc:postgresql://localhost:5432/lifepilot'
    $env:DATABASE_USERNAME = 'lifepilot'
    $env:DATABASE_PASSWORD = 'replace-with-a-local-password'
    $env:JWT_SECRET = python -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"
-   mvn -f lifepilot_backend\pom.xml spring-boot:run
+   mvn spring-boot:run
    ```
 
 3. In a second terminal, run Flutter:
@@ -29,11 +30,13 @@ The mobile app requires the backend for sign-in and task/habit/goal operations. 
 ## Project map
 
 - `lib/` — Flutter application and feature modules
-- `lifepilot_backend/` — Java 17, Spring Boot 3.4, Maven REST API
-- `lifepilot_backend/src/main/resources/db/migration/` — Flyway PostgreSQL migrations
+- `..\lifepilot_backend\` — sibling Java 17, Spring Boot 3.4, Maven REST API
+- `..\lifepilot_backend\src\main\resources\db\migration\` — Flyway PostgreSQL migrations
 
 ## Documentation
 
+- [Migration analysis](../MIGRATION_ANALYSIS.md)
+- [Migration status](../MIGRATION_STATUS.md)
 - [Implementation status and known gaps](IMPLEMENTATION_STATUS.md)
 - [Setup guide](SETUP_GUIDE.md)
 - [Architecture](ARCHITECTURE.md)
@@ -48,7 +51,8 @@ The mobile app requires the backend for sign-in and task/habit/goal operations. 
 ```powershell
 flutter analyze
 flutter test
-mvn -f lifepilot_backend\pom.xml test
+Set-Location ..\lifepilot_backend
+mvn test
 ```
 
 PostgreSQL is required for backend startup and database integration tests. See [TESTING.md](TESTING.md) for what has and has not been run in this environment.

@@ -15,6 +15,13 @@ class GoalService {
         .toList();
   }
 
+  Future<void> addGoal(Goal goal) async {
+    final response =
+        await _apiClient.post('/api/goals', body: _toRequest(goal))
+            as Map<String, dynamic>;
+    goal.id = response['id'] as String;
+  }
+
   Future<void> saveGoals(List<Goal> goals) async {
     final existing = await loadGoals();
     final existingIds = existing.map((goal) => goal.id).toSet();
@@ -24,10 +31,7 @@ class GoalService {
         desiredIds.add(goal.id);
         await _apiClient.put('/api/goals/${goal.id}', body: _toRequest(goal));
       } else {
-        final response =
-            await _apiClient.post('/api/goals', body: _toRequest(goal))
-                as Map<String, dynamic>;
-        goal.id = response['id'] as String;
+        await addGoal(goal);
       }
     }
     for (final goal in existing) {
@@ -41,7 +45,7 @@ class GoalService {
   Map<String, dynamic> _toRequest(Goal goal) => {
     'clientId': goal.id,
     'title': goal.title,
-    'description': '',
+    'description': goal.description,
     'category': goal.category,
     'progress': goal.progress.clamp(0, 1),
     'targetDate': goal.targetDate == null
@@ -49,6 +53,6 @@ class GoalService {
         : '${goal.targetDate!.year.toString().padLeft(4, '0')}-'
               '${goal.targetDate!.month.toString().padLeft(2, '0')}-'
               '${goal.targetDate!.day.toString().padLeft(2, '0')}',
-    'milestones': <String>[],
+    'milestones': goal.milestones,
   };
 }
